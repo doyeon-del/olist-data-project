@@ -1,0 +1,12 @@
+# GCP Key files (절대 업로드 금지)
+*.json
+
+# OS 관련 파일
+.DS_Store
+
+# Python 가상환경
+venv/
+.env
+
+# IntelliJ 설정 파일
+.idea/
