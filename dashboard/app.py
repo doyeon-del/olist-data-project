@@ -15,7 +15,6 @@ import data
 
 st.set_page_config(
     page_title="Olist Delivery & Experience Dashboard",
-    page_icon="📦",
     layout="wide",
 )
 
@@ -34,8 +33,8 @@ BUCKET_COLORS = [PALETTE[c] for c in ("blue", "teal", "yellow", "orange", "red",
 
 PLOTLY_LAYOUT = dict(
     template="plotly_white",
-    margin=dict(l=10, r=10, t=50, b=10),
-    title_font=dict(size=16),
+    margin=dict(l=10, r=10, t=40, b=10),
+    title_font=dict(size=15),
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
 )
 
@@ -45,38 +44,34 @@ PLOTLY_LAYOUT = dict(
 # --------------------------------------------------------------------------- #
 bundle = data.load_all()
 kpi = bundle["kpi"]["df"].iloc[0]
+funnel = bundle["funnel"]["df"].iloc[0]
 delay = bundle["delay"]["df"]
 geo = bundle["geo"]["df"]
 category = bundle["category"]["df"]
 cohort = bundle["cohort"]["df"]
 
-sources = {bundle[k]["source"] for k in bundle}
-primary_source = "BigQuery" if sources == {"BigQuery"} else "Mixed / CSV fallback"
+all_bigquery = {bundle[k]["source"] for k in bundle} == {"BigQuery"}
 
 
 # --------------------------------------------------------------------------- #
 # Header
 # --------------------------------------------------------------------------- #
-st.title("📦 Olist Delivery & Experience Dashboard")
+st.title("Olist Delivery & Experience")
 st.caption(
-    "How delivery performance shapes customer satisfaction in a Brazilian "
-    "marketplace — built on the Olist public dataset (BigQuery → Streamlit)."
+    "Where delivery performance affects customer ratings in the Olist Brazilian "
+    "marketplace dataset. Source: BigQuery, queried live by this app."
 )
 
 with st.sidebar:
-    st.header("Data source")
-    if primary_source == "BigQuery":
-        st.success("Live from BigQuery")
-    else:
-        st.warning("CSV fallback (BigQuery unavailable)")
+    st.subheader("Data source")
+    st.write("Live from BigQuery" if all_bigquery else "CSV fallback (BigQuery unavailable)")
     for name in data.SOURCES:
         b = bundle[name]
-        icon = "🟢" if b["source"] == "BigQuery" else "🟡"
-        st.write(f"{icon} **{name}** — {b['detail']}")
+        st.write(f"`{name}` — {b['source']}")
     st.divider()
     st.caption(
-        "Project: `olist-analysis-project-495210`\n\n"
-        "Queries read from `sql/analysis/*.sql`."
+        "Project `olist-analysis-project-495210`. "
+        "Each tab runs the matching query in `sql/analysis/`."
     )
 
 
@@ -95,14 +90,46 @@ st.divider()
 # --------------------------------------------------------------------------- #
 # Tabs
 # --------------------------------------------------------------------------- #
-tab_delay, tab_geo, tab_cat, tab_ret, tab_insight = st.tabs(
-    ["🚚 Delivery delay", "🗺️ Geo matching", "🏷️ Category", "🔁 Retention", "💡 Insights"]
+tab_funnel, tab_delay, tab_geo, tab_cat, tab_ret, tab_insight = st.tabs(
+    ["Funnel", "Delivery delay", "Geo matching", "Category", "Retention", "Insights"]
 )
+
+
+# ---- Funnel ---------------------------------------------------------------- #
+with tab_funnel:
+    st.subheader("Order fulfillment funnel")
+    stages = ["Purchased", "Approved", "Shipped to carrier", "Delivered"]
+    values = [int(funnel[c]) for c in ("purchased", "approved", "shipped", "delivered")]
+    fig = go.Figure(
+        go.Funnel(
+            y=stages,
+            x=values,
+            textinfo="value+percent initial",
+            marker_color=[PALETTE["blue"], PALETTE["teal"], PALETTE["yellow"], PALETTE["green"]],
+            connector=dict(line=dict(color=PALETTE["gray"], width=1)),
+        )
+    )
+    fig.update_layout(**PLOTLY_LAYOUT)
+    st.plotly_chart(fig, use_container_width=True)
+
+    drop_ship = (values[1] - values[2]) / values[0] * 100
+    drop_deliver = (values[2] - values[3]) / values[0] * 100
+    st.write(
+        f"Of {values[0]:,} placed orders, {values[3] / values[0] * 100:.1f}% reach the "
+        f"customer. The largest leak is the carrier-to-customer leg "
+        f"({drop_deliver:.1f}% of orders), ahead of approval-to-carrier ({drop_ship:.1f}%)."
+    )
+    with st.expander("Stage counts"):
+        st.dataframe(
+            pd.DataFrame({"stage": stages, "orders": values}),
+            width="stretch",
+            hide_index=True,
+        )
 
 
 # ---- Delivery delay -------------------------------------------------------- #
 with tab_delay:
-    st.subheader("Review score drops sharply once orders run late")
+    st.subheader("Review score by days late vs. estimate")
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_bar(
         x=delay["delay_bucket"],
@@ -116,7 +143,7 @@ with tab_delay:
         x=delay["delay_bucket"],
         y=delay["low_score_rate_pct"],
         mode="lines+markers",
-        line=dict(color="#2F2F2F", width=2.5),
+        line=dict(color="#2F2F2F", width=2),
         name="Low-score rate (%)",
         secondary_y=True,
     )
@@ -124,24 +151,19 @@ with tab_delay:
     fig.update_yaxes(range=[0, 100], title_text="Low-score rate (%)", secondary_y=True)
     fig.update_layout(**PLOTLY_LAYOUT)
     st.plotly_chart(fig, use_container_width=True)
-    st.markdown(
-        "- On-time/early orders average **{:.2f}**, but reviews fall to **{:.2f}** "
-        "at 3–4 days late.\n- The share of low scores (≤2) climbs past **{:.0f}%** "
-        "for delays of a week or more.".format(
-            delay.loc[delay["delay_bucket"].str.startswith("D<=0"), "avg_review_score"].iloc[0],
-            delay.loc[delay["delay_bucket"] == "D+3~4", "avg_review_score"].iloc[0]
-            if (delay["delay_bucket"] == "D+3~4").any()
-            else delay["avg_review_score"].iloc[2],
-            delay["low_score_rate_pct"].max(),
-        )
+    on_time = delay.loc[delay["delay_bucket"].str.startswith("D<=0"), "avg_review_score"].iloc[0]
+    st.write(
+        f"On-time and early orders average {on_time:.2f}. Ratings fall through the "
+        f"3-4 day bucket and the share of low scores (2 or below) rises past "
+        f"{delay['low_score_rate_pct'].max():.0f}% once orders run a week or more late."
     )
-    with st.expander("View data"):
+    with st.expander("Query result"):
         st.dataframe(delay, width="stretch", hide_index=True)
 
 
 # ---- Geo matching ---------------------------------------------------------- #
 with tab_geo:
-    st.subheader("Cross-state orders take about twice as long")
+    st.subheader("Lead time by seller-customer location")
     geo_sorted = geo.sort_values("avg_lead_time_days")
     fig = go.Figure()
     fig.add_bar(
@@ -166,17 +188,17 @@ with tab_geo:
             f"delay rate {row['delay_rate_pct']:.2f}%",
             delta_color="off",
         )
-    st.markdown(
-        "Seller–customer co-location is one of the strongest levers on lead time. "
-        "Same-state orders also see a lower delay rate."
+    st.write(
+        "Orders shipped within the customer's own state arrive in about half the time "
+        "and miss the estimate less often."
     )
-    with st.expander("View data"):
+    with st.expander("Query result"):
         st.dataframe(geo, width="stretch", hide_index=True)
 
 
 # ---- Category -------------------------------------------------------------- #
 with tab_cat:
-    st.subheader("Longer lead times tend to coincide with weaker reviews")
+    st.subheader("Lead time vs. review score by category")
     min_orders = st.slider(
         "Minimum orders per category",
         int(category["total_orders"].min()),
@@ -219,7 +241,7 @@ with tab_cat:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("**Weakest categories** (long lead time, low review):")
+    st.write("Categories below the average review and above the average lead time:")
     weak = cat[(cat["avg_lead_time"] > avg_lead) & (cat["avg_review_score"] < avg_rev)]
     weak = weak.sort_values("avg_review_score").head(8)
     st.dataframe(
@@ -259,12 +281,11 @@ def build_retention_curve(df: pd.DataFrame, max_index: int = 12) -> pd.DataFrame
 
 
 with tab_ret:
-    st.subheader("Repeat purchase is rare — retention stays below 1%")
+    st.subheader("Retention by first-order delivery experience")
     st.info(
-        "⚠️ Olist is a near one-time-purchase marketplace: post-first-month "
-        "retention is under 1% for every cohort, and the 'delayed first order' "
-        "group is very small. Read the gap below as directional, not conclusive.",
-        icon="⚠️",
+        "Olist is close to a one-time-purchase marketplace: post-first-month retention "
+        "stays under 1% for every cohort, and the delayed-first-order group is small. "
+        "Read the gap below as directional, not conclusive.",
     )
     curve = build_retention_curve(cohort)
     fig = go.Figure()
@@ -278,7 +299,7 @@ with tab_ret:
             y=g["retention_rate"] * 100,
             mode="lines+markers",
             name=group,
-            line=dict(width=2.5, color=palette.get(group, PALETTE["gray"])),
+            line=dict(width=2, color=palette.get(group, PALETTE["gray"])),
         )
     fig.update_layout(
         xaxis_title="Months since first purchase",
@@ -290,31 +311,26 @@ with tab_ret:
 
 # ---- Insights -------------------------------------------------------------- #
 with tab_insight:
-    st.subheader("Key insights & recommendations")
+    st.subheader("What the data says")
     st.markdown(
         """
-**1. Delivery delay is the dominant satisfaction driver.**
-Reviews collapse from ~4.3 (on time) to ~2.6 once an order is 3–4 days late, and
-most ratings turn negative beyond a week. *Recommendation:* treat "days late vs.
-estimate" as the primary CX guardrail and trigger proactive comms once an order
-crosses the 2-day threshold.
+**Lateness matters more than raw speed.**
+Average review falls from 4.28 on on-time orders to 2.58 once an order is 3-4 days
+past its estimate, and below 2.0 beyond a week. The signal is "later than promised,"
+not the absolute number of days in transit.
 
-**2. Geography sets the speed ceiling.**
-Cross-state orders take ~2× longer (≈14.7 vs ≈7.5 days). *Recommendation:* prioritise
-seller distribution / regional fulfilment for high-volume states to compress lead time.
+**Distance sets the speed ceiling.**
+Same-state orders arrive in about 7.5 days against 14.7 for cross-state. Seller mix by
+region is therefore a structural lever on lead time, not just a logistics detail.
 
-**3. A few categories carry outsized delivery risk.**
-`office_furniture` and other bulky categories pair the longest lead times with the
-lowest reviews. *Recommendation:* set category-specific delivery estimates and SLAs
-rather than a single marketplace-wide promise.
+**Delivery risk is concentrated in a few bulky categories.**
+office_furniture and similar categories combine the longest lead times with the lowest
+reviews, so one marketplace-wide delivery estimate under-serves them.
 
-**4. This is a one-time-purchase marketplace.**
-Retention is <1% regardless of first-order experience, so growth depends on
-acquisition and first-order quality, not repeat behaviour. *Recommendation:* make the
-first delivery count — it is effectively the whole relationship.
+**Repeat purchase is close to absent.**
+Retention sits below 1% across cohorts, so the first order is effectively the whole
+relationship. The same scarcity is why the delay-vs-retention comparison can only be
+read as directional.
 """
     )
-    st.caption(
-        "Analysis: SQL marts on BigQuery → aggregated queries in `sql/analysis/` → "
-        "this dashboard. See README for the full pipeline."
-    )
+    st.caption("Pipeline: BigQuery marts to aggregated queries in `sql/analysis/` to this app.")

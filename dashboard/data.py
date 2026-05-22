@@ -23,6 +23,7 @@ TABLES = ROOT / "results" / "tables"
 # logical name -> (sql file, csv glob used for fallback)
 SOURCES = {
     "kpi": ("kpi_summary.sql", "kpi_summary_*.csv"),
+    "funnel": ("order_funnel.sql", "order_funnel_*.csv"),
     "delay": ("delay_threshold_analysis.sql", "delay_threshold*.csv"),
     "geo": ("geo_matching_leadtime_analysis.sql", "geo_matching_leadtime_*.csv"),
     "category": (
