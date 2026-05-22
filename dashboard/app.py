@@ -72,6 +72,14 @@ st.markdown(
       .lineage .chip:nth-child(1){animation-delay:.00s;} .lineage .chip:nth-child(3){animation-delay:.06s;}
       .lineage .chip:nth-child(5){animation-delay:.12s;} .lineage .chip:nth-child(7){animation-delay:.18s;}
       .lineage .arrow { color: #c1c1c1; font-size: 13px; }
+
+      /* selected segmented-control button (language toggle + view nav) -> green */
+      div[data-testid="stSegmentedControl"] button[aria-checked="true"] {
+        background-color: #e7f6ec !important;
+        color: #0b6e3b !important;
+        border-color: #16a34a !important;
+      }
+      div[data-testid="stSegmentedControl"] button[aria-checked="true"] p { color: #0b6e3b !important; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -168,9 +176,9 @@ st.caption(t["caption"])
 cards_row(
     [
         card(t["kpi_orders"], f"{int(kpi['total_orders']):,}", "delivered", INK),
-        card(t["kpi_leadtime"], f"{kpi['avg_lead_time_days']:.1f}", t["unit_days"], ACCENT),
+        card(t["kpi_leadtime"], f"{kpi['avg_lead_time_days']:.1f}", t["unit_days"], INK),
         card(t["kpi_review"], f"{kpi['avg_review_score']:.2f}", "/ 5", INK),
-        card(t["kpi_delay"], f"{kpi['delay_rate_pct']:.1f}%", "", ACCENT),
+        card(t["kpi_delay"], f"{kpi['delay_rate_pct']:.1f}%", "", INK),
     ]
 )
 st.divider()
