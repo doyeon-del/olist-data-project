@@ -1,0 +1,3 @@
+state_match_type,order_count,avg_lead_time_days,avg_delay_days,avg_review_score,delay_rate_pct
+Cross State,61770,14.68,-11.83,4.08,8.05
+Same State,34700,7.48,-9.4,4.25,4.51
