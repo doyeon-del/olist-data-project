@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import sys
 from pathlib import Path
 
@@ -9,14 +10,13 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 from plotly.subplots import make_subplots
+from scipy import stats
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import data
+import i18n
 
-st.set_page_config(
-    page_title="Olist Delivery & Experience Dashboard",
-    layout="wide",
-)
+st.set_page_config(page_title="Olist Delivery & Experience Dashboard", layout="wide")
 
 PALETTE = {
     "blue": "#4C78A8",
@@ -30,7 +30,6 @@ PALETTE = {
     "gray": "#8C8C8C",
 }
 BUCKET_COLORS = [PALETTE[c] for c in ("blue", "teal", "yellow", "orange", "red", "purple")]
-
 PLOTLY_LAYOUT = dict(
     template="plotly_white",
     margin=dict(l=10, r=10, t=40, b=10),
@@ -40,65 +39,70 @@ PLOTLY_LAYOUT = dict(
 
 
 # --------------------------------------------------------------------------- #
-# Load data
+# Language + data
 # --------------------------------------------------------------------------- #
 bundle = data.load_all()
+all_bigquery = {bundle[k]["source"] for k in bundle} == {"BigQuery"}
+
+with st.sidebar:
+    selected = st.segmented_control(
+        "언어 / Language", options=list(i18n.LANGS), default="한국어"
+    )
+    lang = i18n.LANGS.get(selected or "한국어", "ko")
+    t = i18n.TEXT[lang]
+    vl = i18n.VALUE_LABELS[lang]
+
+    st.subheader(t["sidebar_source"])
+    st.write(t["source_live"] if all_bigquery else t["source_fallback"])
+    for name in data.SOURCES:
+        st.write(f"`{name}` — {bundle[name]['source']}")
+    st.divider()
+    st.caption(t["sidebar_caption"])
+
 kpi = bundle["kpi"]["df"].iloc[0]
 funnel = bundle["funnel"]["df"].iloc[0]
+ttest = bundle["ttest"]["df"].set_index("grp")
 delay = bundle["delay"]["df"]
 geo = bundle["geo"]["df"]
 category = bundle["category"]["df"]
 cohort = bundle["cohort"]["df"]
 
-all_bigquery = {bundle[k]["source"] for k in bundle} == {"BigQuery"}
-
 
 # --------------------------------------------------------------------------- #
-# Header
+# Header + KPI cards
 # --------------------------------------------------------------------------- #
-st.title("Olist Delivery & Experience")
-st.caption(
-    "Where delivery performance affects customer ratings in the Olist Brazilian "
-    "marketplace dataset. Source: BigQuery, queried live by this app."
-)
+st.title(t["title"])
+st.caption(t["caption"])
 
-with st.sidebar:
-    st.subheader("Data source")
-    st.write("Live from BigQuery" if all_bigquery else "CSV fallback (BigQuery unavailable)")
-    for name in data.SOURCES:
-        b = bundle[name]
-        st.write(f"`{name}` — {b['source']}")
-    st.divider()
-    st.caption(
-        "Project `olist-analysis-project-495210`. "
-        "Each tab runs the matching query in `sql/analysis/`."
-    )
-
-
-# --------------------------------------------------------------------------- #
-# KPI cards
-# --------------------------------------------------------------------------- #
 c1, c2, c3, c4 = st.columns(4)
-c1.metric("Delivered orders", f"{int(kpi['total_orders']):,}")
-c2.metric("Avg lead time", f"{kpi['avg_lead_time_days']:.1f} days")
-c3.metric("Avg review score", f"{kpi['avg_review_score']:.2f} / 5")
-c4.metric("Delay rate", f"{kpi['delay_rate_pct']:.1f}%")
-
+c1.metric(t["kpi_orders"], f"{int(kpi['total_orders']):,}")
+c2.metric(t["kpi_leadtime"], f"{kpi['avg_lead_time_days']:.1f} {t['unit_days']}")
+c3.metric(t["kpi_review"], f"{kpi['avg_review_score']:.2f} / 5")
+c4.metric(t["kpi_delay"], f"{kpi['delay_rate_pct']:.1f}%")
 st.divider()
 
 
 # --------------------------------------------------------------------------- #
 # Tabs
 # --------------------------------------------------------------------------- #
-tab_funnel, tab_delay, tab_geo, tab_cat, tab_ret, tab_insight = st.tabs(
-    ["Funnel", "Delivery delay", "Geo matching", "Category", "Retention", "Insights"]
+tabs = st.tabs(
+    [
+        t["tab_funnel"],
+        t["tab_stats"],
+        t["tab_delay"],
+        t["tab_geo"],
+        t["tab_category"],
+        t["tab_retention"],
+        t["tab_insights"],
+    ]
 )
+tab_funnel, tab_stats, tab_delay, tab_geo, tab_cat, tab_ret, tab_insight = tabs
 
 
 # ---- Funnel ---------------------------------------------------------------- #
 with tab_funnel:
-    st.subheader("Order fulfillment funnel")
-    stages = ["Purchased", "Approved", "Shipped to carrier", "Delivered"]
+    st.subheader(t["funnel_title"])
+    stages = t["funnel_stages"]
     values = [int(funnel[c]) for c in ("purchased", "approved", "shipped", "delivered")]
     fig = go.Figure(
         go.Funnel(
@@ -111,25 +115,73 @@ with tab_funnel:
     )
     fig.update_layout(**PLOTLY_LAYOUT)
     st.plotly_chart(fig, use_container_width=True)
-
-    drop_ship = (values[1] - values[2]) / values[0] * 100
-    drop_deliver = (values[2] - values[3]) / values[0] * 100
     st.write(
-        f"Of {values[0]:,} placed orders, {values[3] / values[0] * 100:.1f}% reach the "
-        f"customer. The largest leak is the carrier-to-customer leg "
-        f"({drop_deliver:.1f}% of orders), ahead of approval-to-carrier ({drop_ship:.1f}%)."
+        t["funnel_text"].format(
+            placed=values[0],
+            pct=values[3] / values[0] * 100,
+            deliver=(values[2] - values[3]) / values[0] * 100,
+            ship=(values[1] - values[2]) / values[0] * 100,
+        )
     )
-    with st.expander("Stage counts"):
+    with st.expander(t["funnel_expander"]):
         st.dataframe(
-            pd.DataFrame({"stage": stages, "orders": values}),
+            pd.DataFrame({t["col_stage"]: stages, t["col_orders"]: values}),
             width="stretch",
             hide_index=True,
         )
 
 
+# ---- Statistical test ------------------------------------------------------ #
+with tab_stats:
+    st.subheader(t["stats_title"])
+    st.info(t["stats_intro"])
+
+    n_d, m_d, s_d = (ttest.loc["delayed", c] for c in ("n", "mean_score", "sd_score"))
+    n_o, m_o, s_o = (ttest.loc["on_time", c] for c in ("n", "mean_score", "sd_score"))
+    diff = m_o - m_d
+    se = math.sqrt(s_o**2 / n_o + s_d**2 / n_d)
+    t_stat = diff / se
+    df_w = se**4 / ((s_o**2 / n_o) ** 2 / (n_o - 1) + (s_d**2 / n_d) ** 2 / (n_d - 1))
+    p_val = 2 * stats.t.sf(abs(t_stat), df_w)
+    pooled_sd = math.sqrt(((n_o - 1) * s_o**2 + (n_d - 1) * s_d**2) / (n_o + n_d - 2))
+    cohen_d = diff / pooled_sd
+    tcrit = stats.t.ppf(0.975, df_w)
+    lo, hi = diff - tcrit * se, diff + tcrit * se
+
+    m1, m2, m3 = st.columns(3)
+    m1.metric(t["stats_group_ontime"], f"{m_o:.2f}", f"n = {int(n_o):,}", delta_color="off")
+    m2.metric(t["stats_group_delayed"], f"{m_d:.2f}", f"n = {int(n_d):,}", delta_color="off")
+    m3.metric(t["stats_diff"], f"+{diff:.2f}", f"d = {cohen_d:.2f}", delta_color="off")
+
+    fig = go.Figure(
+        go.Bar(
+            x=[t["stats_group_ontime"], t["stats_group_delayed"]],
+            y=[m_o, m_d],
+            error_y=dict(
+                type="data",
+                array=[1.96 * s_o / math.sqrt(n_o), 1.96 * s_d / math.sqrt(n_d)],
+                visible=True,
+            ),
+            marker_color=[PALETTE["blue"], PALETTE["cross"]],
+            text=[f"{m_o:.2f}", f"{m_d:.2f}"],
+            textposition="outside",
+        )
+    )
+    fig.update_yaxes(range=[0, 5], title_text=t["stats_axis"])
+    fig.update_layout(**PLOTLY_LAYOUT)
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption(t["stats_metrics_caption"])
+
+    p_str = "< 0.001" if p_val < 0.001 else f"= {p_val:.3f}"
+    st.write(
+        t["stats_result"].format(diff=diff, lo=lo, hi=hi, df=df_w, t=t_stat, p=p_str, d=cohen_d)
+    )
+    st.caption(t["stats_caveat"])
+
+
 # ---- Delivery delay -------------------------------------------------------- #
 with tab_delay:
-    st.subheader("Review score by days late vs. estimate")
+    st.subheader(t["delay_title"])
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_bar(
         x=delay["delay_bucket"],
@@ -137,77 +189,69 @@ with tab_delay:
         marker_color=BUCKET_COLORS[: len(delay)],
         text=[f"{v:.2f}" for v in delay["avg_review_score"]],
         textposition="outside",
-        name="Avg review score",
+        name=t["delay_legend_score"],
     )
     fig.add_scatter(
         x=delay["delay_bucket"],
         y=delay["low_score_rate_pct"],
         mode="lines+markers",
         line=dict(color="#2F2F2F", width=2),
-        name="Low-score rate (%)",
+        name=t["delay_legend_low"],
         secondary_y=True,
     )
-    fig.update_yaxes(range=[0, 5], title_text="Avg review score", secondary_y=False)
-    fig.update_yaxes(range=[0, 100], title_text="Low-score rate (%)", secondary_y=True)
+    fig.update_yaxes(range=[0, 5], title_text=t["delay_y1"], secondary_y=False)
+    fig.update_yaxes(range=[0, 100], title_text=t["delay_y2"], secondary_y=True)
     fig.update_layout(**PLOTLY_LAYOUT)
     st.plotly_chart(fig, use_container_width=True)
     on_time = delay.loc[delay["delay_bucket"].str.startswith("D<=0"), "avg_review_score"].iloc[0]
-    st.write(
-        f"On-time and early orders average {on_time:.2f}. Ratings fall through the "
-        f"3-4 day bucket and the share of low scores (2 or below) rises past "
-        f"{delay['low_score_rate_pct'].max():.0f}% once orders run a week or more late."
-    )
-    with st.expander("Query result"):
+    st.write(t["delay_text"].format(on_time=on_time, low=delay["low_score_rate_pct"].max()))
+    with st.expander(t["delay_expander"]):
         st.dataframe(delay, width="stretch", hide_index=True)
 
 
 # ---- Geo matching ---------------------------------------------------------- #
 with tab_geo:
-    st.subheader("Lead time by seller-customer location")
+    st.subheader(t["geo_title"])
     geo_sorted = geo.sort_values("avg_lead_time_days")
     fig = go.Figure()
     fig.add_bar(
-        y=geo_sorted["state_match_type"],
+        y=[vl[v] for v in geo_sorted["state_match_type"]],
         x=geo_sorted["avg_lead_time_days"],
         orientation="h",
         marker_color=[
             PALETTE["green"] if v == "Same State" else PALETTE["cross"]
             for v in geo_sorted["state_match_type"]
         ],
-        text=[f"{v:.2f} days" for v in geo_sorted["avg_lead_time_days"]],
+        text=[f"{v:.2f} {t['unit_days']}" for v in geo_sorted["avg_lead_time_days"]],
         textposition="outside",
     )
-    fig.update_layout(xaxis_title="Average lead time (days)", **PLOTLY_LAYOUT)
+    fig.update_layout(xaxis_title=t["geo_axis"], **PLOTLY_LAYOUT)
     st.plotly_chart(fig, use_container_width=True)
 
     cols = st.columns(len(geo))
     for col, (_, row) in zip(cols, geo.iterrows()):
         col.metric(
-            row["state_match_type"],
-            f"{row['avg_lead_time_days']:.1f} days",
-            f"delay rate {row['delay_rate_pct']:.2f}%",
+            vl[row["state_match_type"]],
+            f"{row['avg_lead_time_days']:.1f} {t['unit_days']}",
+            t["geo_delay_rate"].format(v=row["delay_rate_pct"]),
             delta_color="off",
         )
-    st.write(
-        "Orders shipped within the customer's own state arrive in about half the time "
-        "and miss the estimate less often."
-    )
-    with st.expander("Query result"):
+    st.write(t["geo_text"])
+    with st.expander(t["geo_expander"]):
         st.dataframe(geo, width="stretch", hide_index=True)
 
 
 # ---- Category -------------------------------------------------------------- #
 with tab_cat:
-    st.subheader("Lead time vs. review score by category")
+    st.subheader(t["cat_title"])
     min_orders = st.slider(
-        "Minimum orders per category",
+        t["cat_slider"],
         int(category["total_orders"].min()),
         int(category["total_orders"].max()),
         int(max(category["total_orders"].min(), 100)),
         step=50,
     )
     cat = category[category["total_orders"] >= min_orders].copy()
-
     avg_lead = cat["avg_lead_time"].mean()
     avg_rev = cat["avg_review_score"].mean()
     fig = go.Figure()
@@ -218,37 +262,38 @@ with tab_cat:
         marker=dict(
             size=cat["total_orders"],
             sizemode="area",
-            sizeref=2.0 * cat["total_orders"].max() / (45.0 ** 2),
+            sizeref=2.0 * cat["total_orders"].max() / (45.0**2),
             sizemin=4,
             color=cat["avg_review_score"],
             colorscale="RdYlGn",
             cmin=3.4,
             cmax=4.6,
             showscale=True,
-            colorbar=dict(title="Review"),
+            colorbar=dict(title=t["cat_hover_review"]),
             line=dict(width=0.5, color="#333"),
         ),
         text=cat["category_name_en"],
-        hovertemplate="<b>%{text}</b><br>Lead time: %{x:.1f}d<br>"
-        "Review: %{y:.2f}<br>Orders: %{marker.size:,}<extra></extra>",
+        customdata=cat["total_orders"],
+        hovertemplate=f"<b>%{{text}}</b><br>{t['cat_hover_lead']}: %{{x:.1f}}<br>"
+        f"{t['cat_hover_review']}: %{{y:.2f}}<br>{t['cat_hover_orders']}: %{{customdata:,}}<extra></extra>",
     )
     fig.add_vline(x=avg_lead, line_dash="dash", line_color=PALETTE["gray"])
     fig.add_hline(y=avg_rev, line_dash="dash", line_color=PALETTE["gray"])
-    fig.update_layout(
-        xaxis_title="Average lead time (days)",
-        yaxis_title="Average review score",
-        **PLOTLY_LAYOUT,
-    )
+    fig.update_layout(xaxis_title=t["cat_x"], yaxis_title=t["cat_y"], **PLOTLY_LAYOUT)
     st.plotly_chart(fig, use_container_width=True)
 
-    st.write("Categories below the average review and above the average lead time:")
+    st.write(t["cat_weak"])
     weak = cat[(cat["avg_lead_time"] > avg_lead) & (cat["avg_review_score"] < avg_rev)]
     weak = weak.sort_values("avg_review_score").head(8)
-    st.dataframe(
-        weak[["category_name_en", "total_orders", "avg_lead_time", "avg_review_score"]],
-        width="stretch",
-        hide_index=True,
+    weak = weak[["category_name_en", "total_orders", "avg_lead_time", "avg_review_score"]].rename(
+        columns={
+            "category_name_en": t["cat_col_name"],
+            "total_orders": t["cat_col_orders"],
+            "avg_lead_time": t["cat_col_lead"],
+            "avg_review_score": t["cat_col_review"],
+        }
     )
+    st.dataframe(weak, width="stretch", hide_index=True)
 
 
 # ---- Retention ------------------------------------------------------------- #
@@ -281,56 +326,25 @@ def build_retention_curve(df: pd.DataFrame, max_index: int = 12) -> pd.DataFrame
 
 
 with tab_ret:
-    st.subheader("Retention by first-order delivery experience")
-    st.info(
-        "Olist is close to a one-time-purchase marketplace: post-first-month retention "
-        "stays under 1% for every cohort, and the delayed-first-order group is small. "
-        "Read the gap below as directional, not conclusive.",
-    )
+    st.subheader(t["ret_title"])
+    st.info(t["ret_info"])
     curve = build_retention_curve(cohort)
     fig = go.Figure()
-    palette = {
-        "Delayed First Order": PALETTE["cross"],
-        "On-time/Early First Order": PALETTE["blue"],
-    }
+    palette = {"Delayed First Order": PALETTE["cross"], "On-time/Early First Order": PALETTE["blue"]}
     for group, g in curve.groupby("first_order_delay_group"):
         fig.add_scatter(
             x=g["cohort_index"],
             y=g["retention_rate"] * 100,
             mode="lines+markers",
-            name=group,
+            name=vl.get(group, group),
             line=dict(width=2, color=palette.get(group, PALETTE["gray"])),
         )
-    fig.update_layout(
-        xaxis_title="Months since first purchase",
-        yaxis_title="Retention rate (%)",
-        **PLOTLY_LAYOUT,
-    )
+    fig.update_layout(xaxis_title=t["ret_x"], yaxis_title=t["ret_y"], **PLOTLY_LAYOUT)
     st.plotly_chart(fig, use_container_width=True)
 
 
 # ---- Insights -------------------------------------------------------------- #
 with tab_insight:
-    st.subheader("What the data says")
-    st.markdown(
-        """
-**Lateness matters more than raw speed.**
-Average review falls from 4.28 on on-time orders to 2.58 once an order is 3-4 days
-past its estimate, and below 2.0 beyond a week. The signal is "later than promised,"
-not the absolute number of days in transit.
-
-**Distance sets the speed ceiling.**
-Same-state orders arrive in about 7.5 days against 14.7 for cross-state. Seller mix by
-region is therefore a structural lever on lead time, not just a logistics detail.
-
-**Delivery risk is concentrated in a few bulky categories.**
-office_furniture and similar categories combine the longest lead times with the lowest
-reviews, so one marketplace-wide delivery estimate under-serves them.
-
-**Repeat purchase is close to absent.**
-Retention sits below 1% across cohorts, so the first order is effectively the whole
-relationship. The same scarcity is why the delay-vs-retention comparison can only be
-read as directional.
-"""
-    )
-    st.caption("Pipeline: BigQuery marts to aggregated queries in `sql/analysis/` to this app.")
+    st.subheader(t["insights_title"])
+    st.markdown(t["insights_body"])
+    st.caption(t["insights_caption"])

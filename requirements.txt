@@ -1,6 +1,7 @@
 streamlit>=1.49
 plotly>=5.20
 pandas>=2.0
+scipy>=1.10
 google-cloud-bigquery>=3.20
 db-dtypes>=1.2
 pyarrow>=14

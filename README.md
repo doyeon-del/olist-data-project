@@ -136,8 +136,13 @@ python3 python_scripts/create_analysis_figures.py
 
 ## Interactive Dashboard (Streamlit + BigQuery)
 
-`dashboard/app.py`는 KPI 카드와 4개 분석 탭(배송 지연 / 지역 매칭 / 카테고리 / 리텐션),
-인사이트 섹션으로 구성된 인터랙티브 대시보드입니다.
+`dashboard/app.py`는 KPI 카드와 6개 탭(퍼널 / 통계 검정 / 배송 지연 / 지역 매칭 /
+카테고리 / 리텐션), 인사이트 섹션으로 구성된 인터랙티브 대시보드입니다.
+사이드바에서 **한국어/English 토글**을 지원합니다.
+
+`통계 검정` 탭은 지연군 vs 정시군의 리뷰 점수 차이에 Welch t-검정, Cohen's d,
+95% 신뢰구간을 적용합니다. Olist에는 실험 데이터가 없으므로 이는 무작위 배정 A/B
+테스트가 아니라 **관찰적 비교**이며, 탭에 그 한계를 명시합니다.
 
 데이터 소스:
 
