@@ -22,28 +22,15 @@ st.set_page_config(page_title="Olist Delivery & Experience Dashboard", layout="w
 # Semantic colors (Airbnb register: ink + a single Rausch voltage, plus a small
 # functional set so numbers carry meaning through color, not just weight).
 INK = "#222222"
-BODY = "#3f3f3f"
-MUTED = "#6a6a6a"
-BLUE = "#2563eb"
-RAUSCH = "#ff385c"
-GREEN = "#1a8754"
-TEAL = "#0e7490"
-AMBER = "#b06d00"
-VIOLET = "#7b2ff7"
+GRAY = "#929292"
+ACCENT = "#16a34a"       # primary green (matches config.toml primaryColor)
+ACCENT_DK = "#0b6e3b"
+ACCENT_LT = "#a9e0bf"
 FONT_STACK = "PretendardGOV, -apple-system, system-ui, sans-serif"
 
-PALETTE = {
-    "blue": "#4C78A8",
-    "teal": TEAL,
-    "yellow": "#E6A700",
-    "orange": "#F58518",
-    "red": RAUSCH,
-    "purple": VIOLET,
-    "green": GREEN,
-    "cross": RAUSCH,
-    "gray": "#929292",
-}
-BUCKET_COLORS = ["#1a8754", "#67c39a", "#e6a700", "#f58518", "#ff6f59", RAUSCH]
+# Monochrome green ramp, light -> dark. Single tone family across all charts.
+GREENS = ["#dcf3e4", "#a9e0bf", "#76c998", "#46b079", "#1f9254", "#0b6e3b"]
+BUCKET_COLORS = GREENS
 PLOTLY_LAYOUT = dict(
     template="plotly_white",
     margin=dict(l=10, r=10, t=40, b=10),
@@ -80,7 +67,7 @@ st.markdown(
       .lineage .chip { background: #f7f7f7; border: 1px solid #ebebeb; border-radius: 9999px;
         padding: 5px 13px; font-size: 12.5px; color: #3f3f3f; white-space: nowrap;
         animation: riseIn .5s ease both; }
-      .lineage .chip-bq { background: #eaf1ff; border-color: #c7dbff; color: #1d4ed8; font-weight: 600; }
+      .lineage .chip-bq { background: #e7f6ec; border-color: #b6e3c5; color: #0b6e3b; font-weight: 600; }
       .lineage .chip-rows { font-weight: 600; color: #222; }
       .lineage .chip:nth-child(1){animation-delay:.00s;} .lineage .chip:nth-child(3){animation-delay:.06s;}
       .lineage .chip:nth-child(5){animation-delay:.12s;} .lineage .chip:nth-child(7){animation-delay:.18s;}
@@ -104,10 +91,6 @@ with st.sidebar:
     lang = i18n.LANGS.get(selected or "한국어", "ko")
     t = i18n.TEXT[lang]
     vl = i18n.VALUE_LABELS[lang]
-    st.subheader(t["sidebar_source"])
-    st.write(t["source_live"] if all_bigquery else t["source_fallback"])
-    for name in data.SOURCES:
-        st.write(f"`{name}` — {bundle[name]['source']}")
     st.divider()
     st.caption(t["sidebar_caption"])
 
@@ -185,9 +168,9 @@ st.caption(t["caption"])
 cards_row(
     [
         card(t["kpi_orders"], f"{int(kpi['total_orders']):,}", "delivered", INK),
-        card(t["kpi_leadtime"], f"{kpi['avg_lead_time_days']:.1f}", t["unit_days"], BLUE),
+        card(t["kpi_leadtime"], f"{kpi['avg_lead_time_days']:.1f}", t["unit_days"], ACCENT),
         card(t["kpi_review"], f"{kpi['avg_review_score']:.2f}", "/ 5", INK),
-        card(t["kpi_delay"], f"{kpi['delay_rate_pct']:.1f}%", "", BLUE),
+        card(t["kpi_delay"], f"{kpi['delay_rate_pct']:.1f}%", "", ACCENT),
     ]
 )
 st.divider()
@@ -224,8 +207,8 @@ if view == "funnel":
             y=stages,
             x=values,
             textinfo="value+percent initial",
-            marker_color=[PALETTE["blue"], TEAL, PALETTE["yellow"], GREEN],
-            connector=dict(line=dict(color=PALETTE["gray"], width=1)),
+            marker_color=[GREENS[1], GREENS[2], GREENS[3], GREENS[5]],
+            connector=dict(line=dict(color=GRAY, width=1)),
         )
     )
     fig.update_layout(**PLOTLY_LAYOUT)
@@ -271,7 +254,7 @@ elif view == "stats":
         [
             card(t["stats_group_ontime"], f"{m_o:.2f}", f"n = {int(n_o):,}", INK),
             card(t["stats_group_delayed"], f"{m_d:.2f}", f"n = {int(n_d):,}", INK),
-            card(t["stats_diff"], f"+{diff:.2f}", f"Cohen's d = {cohen_d:.2f}", BLUE),
+            card(t["stats_diff"], f"+{diff:.2f}", f"Cohen's d = {cohen_d:.2f}", ACCENT),
         ]
     )
 
@@ -284,7 +267,7 @@ elif view == "stats":
                 array=[1.96 * s_o / math.sqrt(n_o), 1.96 * s_d / math.sqrt(n_d)],
                 visible=True,
             ),
-            marker_color=[GREEN, RAUSCH],
+            marker_color=[ACCENT_DK, ACCENT_LT],
             text=[f"{m_o:.2f}", f"{m_d:.2f}"],
             textposition="outside",
         )
@@ -353,7 +336,7 @@ elif view == "geo":
                 vl[row["state_match_type"]],
                 f"{row['avg_lead_time_days']:.1f} {t['unit_days']}",
                 t["geo_delay_rate"].format(v=row["delay_rate_pct"]),
-                BLUE if row["state_match_type"] == "Same State" else INK,
+                ACCENT if row["state_match_type"] == "Same State" else INK,
             )
             for _, row in geo.iterrows()
         ]
@@ -364,7 +347,7 @@ elif view == "geo":
         y=[vl[v] for v in geo_sorted["state_match_type"]],
         x=geo_sorted["avg_lead_time_days"],
         orientation="h",
-        marker_color=[GREEN if v == "Same State" else RAUSCH for v in geo_sorted["state_match_type"]],
+        marker_color=[ACCENT_DK if v == "Same State" else ACCENT_LT for v in geo_sorted["state_match_type"]],
         text=[f"{v:.2f} {t['unit_days']}" for v in geo_sorted["avg_lead_time_days"]],
         textposition="outside",
     )
@@ -415,7 +398,7 @@ elif view == "category":
             sizeref=2.0 * cat["total_orders"].max() / (45.0**2),
             sizemin=4,
             color=cat["avg_review_score"],
-            colorscale="RdYlGn",
+            colorscale="Greens",
             cmin=3.4,
             cmax=4.6,
             showscale=True,
@@ -427,8 +410,8 @@ elif view == "category":
         hovertemplate=f"<b>%{{text}}</b><br>{t['cat_hover_lead']}: %{{x:.1f}}<br>"
         f"{t['cat_hover_review']}: %{{y:.2f}}<br>{t['cat_hover_orders']}: %{{customdata:,}}<extra></extra>",
     )
-    fig.add_vline(x=avg_lead, line_dash="dash", line_color=PALETTE["gray"])
-    fig.add_hline(y=avg_rev, line_dash="dash", line_color=PALETTE["gray"])
+    fig.add_vline(x=avg_lead, line_dash="dash", line_color=GRAY)
+    fig.add_hline(y=avg_rev, line_dash="dash", line_color=GRAY)
     fig.update_layout(xaxis_title=t["cat_x"], yaxis_title=t["cat_y"], **PLOTLY_LAYOUT)
     st.plotly_chart(fig, use_container_width=True)
 
@@ -484,14 +467,14 @@ elif view == "retention":
     st.info(t["ret_info"])
     curve = build_retention_curve(cohort)
     fig = go.Figure()
-    palette = {"Delayed First Order": RAUSCH, "On-time/Early First Order": GREEN}
+    palette = {"Delayed First Order": ACCENT_LT, "On-time/Early First Order": ACCENT_DK}
     for group, g in curve.groupby("first_order_delay_group"):
         fig.add_scatter(
             x=g["cohort_index"],
             y=g["retention_rate"] * 100,
             mode="lines+markers",
             name=vl.get(group, group),
-            line=dict(width=2, color=palette.get(group, PALETTE["gray"])),
+            line=dict(width=2, color=palette.get(group, GRAY)),
         )
     fig.update_layout(xaxis_title=t["ret_x"], yaxis_title=t["ret_y"], **PLOTLY_LAYOUT)
     st.plotly_chart(fig, use_container_width=True)
