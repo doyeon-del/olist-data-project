@@ -74,12 +74,16 @@ st.markdown(
       .lineage .arrow { color: #c1c1c1; font-size: 13px; }
 
       /* selected segmented-control button (language toggle + view nav) -> green */
-      div[data-testid="stSegmentedControl"] button[aria-checked="true"] {
+      button[data-testid="stBaseButton-segmented_controlActive"],
+      div[data-testid="stSegmentedControl"] button[aria-pressed="true"] {
         background-color: #e7f6ec !important;
         color: #0b6e3b !important;
         border-color: #16a34a !important;
       }
-      div[data-testid="stSegmentedControl"] button[aria-checked="true"] p { color: #0b6e3b !important; }
+      button[data-testid="stBaseButton-segmented_controlActive"] p,
+      div[data-testid="stSegmentedControl"] button[aria-pressed="true"] p {
+        color: #0b6e3b !important;
+      }
     </style>
     """,
     unsafe_allow_html=True,
