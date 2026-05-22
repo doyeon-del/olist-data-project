@@ -30,11 +30,11 @@ style = "normal"
 
 [theme]
 base = "light"
-primaryColor = "#ff385c"
+primaryColor = "#2563eb"
 backgroundColor = "#ffffff"
 secondaryBackgroundColor = "#f7f7f7"
 textColor = "#222222"
-linkColor = "#ff385c"
+linkColor = "#2563eb"
 borderColor = "#dddddd"
 dataframeBorderColor = "#ebebeb"
 codeBackgroundColor = "#f7f7f7"

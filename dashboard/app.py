@@ -24,6 +24,7 @@ st.set_page_config(page_title="Olist Delivery & Experience Dashboard", layout="w
 INK = "#222222"
 BODY = "#3f3f3f"
 MUTED = "#6a6a6a"
+BLUE = "#2563eb"
 RAUSCH = "#ff385c"
 GREEN = "#1a8754"
 TEAL = "#0e7490"
@@ -79,7 +80,7 @@ st.markdown(
       .lineage .chip { background: #f7f7f7; border: 1px solid #ebebeb; border-radius: 9999px;
         padding: 5px 13px; font-size: 12.5px; color: #3f3f3f; white-space: nowrap;
         animation: riseIn .5s ease both; }
-      .lineage .chip-bq { background: #fff0f3; border-color: #ffd1da; color: #e00b41; font-weight: 600; }
+      .lineage .chip-bq { background: #eaf1ff; border-color: #c7dbff; color: #1d4ed8; font-weight: 600; }
       .lineage .chip-rows { font-weight: 600; color: #222; }
       .lineage .chip:nth-child(1){animation-delay:.00s;} .lineage .chip:nth-child(3){animation-delay:.06s;}
       .lineage .chip:nth-child(5){animation-delay:.12s;} .lineage .chip:nth-child(7){animation-delay:.18s;}
@@ -184,9 +185,9 @@ st.caption(t["caption"])
 cards_row(
     [
         card(t["kpi_orders"], f"{int(kpi['total_orders']):,}", "delivered", INK),
-        card(t["kpi_leadtime"], f"{kpi['avg_lead_time_days']:.1f}", t["unit_days"], TEAL),
-        card(t["kpi_review"], f"{kpi['avg_review_score']:.2f}", "/ 5", GREEN),
-        card(t["kpi_delay"], f"{kpi['delay_rate_pct']:.1f}%", "", RAUSCH),
+        card(t["kpi_leadtime"], f"{kpi['avg_lead_time_days']:.1f}", t["unit_days"], BLUE),
+        card(t["kpi_review"], f"{kpi['avg_review_score']:.2f}", "/ 5", INK),
+        card(t["kpi_delay"], f"{kpi['delay_rate_pct']:.1f}%", "", BLUE),
     ]
 )
 st.divider()
@@ -268,9 +269,9 @@ elif view == "stats":
 
     cards_row(
         [
-            card(t["stats_group_ontime"], f"{m_o:.2f}", f"n = {int(n_o):,}", GREEN),
-            card(t["stats_group_delayed"], f"{m_d:.2f}", f"n = {int(n_d):,}", RAUSCH),
-            card(t["stats_diff"], f"+{diff:.2f}", f"Cohen's d = {cohen_d:.2f}", VIOLET),
+            card(t["stats_group_ontime"], f"{m_o:.2f}", f"n = {int(n_o):,}", INK),
+            card(t["stats_group_delayed"], f"{m_d:.2f}", f"n = {int(n_d):,}", INK),
+            card(t["stats_diff"], f"+{diff:.2f}", f"Cohen's d = {cohen_d:.2f}", BLUE),
         ]
     )
 
@@ -352,7 +353,7 @@ elif view == "geo":
                 vl[row["state_match_type"]],
                 f"{row['avg_lead_time_days']:.1f} {t['unit_days']}",
                 t["geo_delay_rate"].format(v=row["delay_rate_pct"]),
-                GREEN if row["state_match_type"] == "Same State" else RAUSCH,
+                BLUE if row["state_match_type"] == "Same State" else INK,
             )
             for _, row in geo.iterrows()
         ]
