@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import sys
+import time
 from pathlib import Path
 
 import pandas as pd
@@ -18,45 +19,74 @@ import i18n
 
 st.set_page_config(page_title="Olist Delivery & Experience Dashboard", layout="wide")
 
-# Editorial polish on top of the native theme (config.toml): tighter display
-# tracking and antialiasing, in the Expo/Inter-style register but set in PretendardGOV.
-st.markdown(
-    """
-    <style>
-      html, body, [class*="css"] { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
-      h1 { font-weight: 600; letter-spacing: -0.03em; font-size: 2.6rem; line-height: 1.08; }
-      h2, h3 { font-weight: 600; letter-spacing: -0.02em; }
-      [data-testid="stMetricValue"] { font-weight: 600; letter-spacing: -0.02em; }
-      [data-testid="stMetricLabel"] p { color: #60646c; font-weight: 500; }
-      .stTabs [data-baseweb="tab"] { font-weight: 500; }
-      [data-testid="stCaptionContainer"] { color: #60646c; }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
+# Semantic colors (Airbnb register: ink + a single Rausch voltage, plus a small
+# functional set so numbers carry meaning through color, not just weight).
+INK = "#222222"
+BODY = "#3f3f3f"
+MUTED = "#6a6a6a"
+RAUSCH = "#ff385c"
+GREEN = "#1a8754"
+TEAL = "#0e7490"
+AMBER = "#b06d00"
+VIOLET = "#7b2ff7"
 FONT_STACK = "PretendardGOV, -apple-system, system-ui, sans-serif"
 
 PALETTE = {
     "blue": "#4C78A8",
-    "teal": "#72B7B2",
-    "yellow": "#F2CF5B",
+    "teal": TEAL,
+    "yellow": "#E6A700",
     "orange": "#F58518",
-    "red": "#E45756",
-    "purple": "#B279A2",
-    "green": "#59A14F",
-    "cross": "#E15759",
-    "gray": "#8C8C8C",
+    "red": RAUSCH,
+    "purple": VIOLET,
+    "green": GREEN,
+    "cross": RAUSCH,
+    "gray": "#929292",
 }
-BUCKET_COLORS = [PALETTE[c] for c in ("blue", "teal", "yellow", "orange", "red", "purple")]
+BUCKET_COLORS = ["#1a8754", "#67c39a", "#e6a700", "#f58518", "#ff6f59", RAUSCH]
 PLOTLY_LAYOUT = dict(
     template="plotly_white",
     margin=dict(l=10, r=10, t=40, b=10),
-    font=dict(family=FONT_STACK, color="#171717", size=13),
+    font=dict(family=FONT_STACK, color=INK, size=13),
     title_font=dict(family=FONT_STACK, size=15),
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+)
+
+st.markdown(
+    """
+    <style>
+      html, body, [class*="css"] { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+      h1 { font-weight: 700; letter-spacing: -0.02em; font-size: 2rem; line-height: 1.15; }
+      h2, h3 { font-weight: 600; letter-spacing: -0.01em; }
+      [data-testid="stCaptionContainer"] { color: #6a6a6a; }
+
+      @keyframes riseIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+      /* number cards */
+      .mrow { display: flex; gap: 14px; flex-wrap: wrap; margin: 2px 0 8px; }
+      .mcard { flex: 1; min-width: 150px; background: #fff; border: 1px solid #ebebeb;
+        border-radius: 14px; padding: 16px 18px;
+        box-shadow: rgba(0,0,0,0.02) 0 0 0 1px, rgba(0,0,0,0.04) 0 2px 6px;
+        animation: riseIn .5s ease both; }
+      .mcard .mlabel { font-size: 13px; color: #6a6a6a; font-weight: 500; margin-bottom: 6px; }
+      .mcard .mvalue { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.05; }
+      .mcard .msub { font-size: 12.5px; color: #929292; margin-top: 5px; }
+
+      /* data-source lineage strip */
+      .lineage { display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+        margin: 2px 0 14px; }
+      .lineage .chip { background: #f7f7f7; border: 1px solid #ebebeb; border-radius: 9999px;
+        padding: 5px 13px; font-size: 12.5px; color: #3f3f3f; white-space: nowrap;
+        animation: riseIn .5s ease both; }
+      .lineage .chip-bq { background: #fff0f3; border-color: #ffd1da; color: #e00b41; font-weight: 600; }
+      .lineage .chip-rows { font-weight: 600; color: #222; }
+      .lineage .chip:nth-child(1){animation-delay:.00s;} .lineage .chip:nth-child(3){animation-delay:.06s;}
+      .lineage .chip:nth-child(5){animation-delay:.12s;} .lineage .chip:nth-child(7){animation-delay:.18s;}
+      .lineage .arrow { color: #c1c1c1; font-size: 13px; }
+    </style>
+    """,
+    unsafe_allow_html=True,
 )
 
 
@@ -68,12 +98,11 @@ all_bigquery = {bundle[k]["source"] for k in bundle} == {"BigQuery"}
 
 with st.sidebar:
     selected = st.segmented_control(
-        "언어 / Language", options=list(i18n.LANGS), default="한국어"
+        "언어 / Language", options=list(i18n.LANGS), default="한국어", key="lang"
     )
     lang = i18n.LANGS.get(selected or "한국어", "ko")
     t = i18n.TEXT[lang]
     vl = i18n.VALUE_LABELS[lang]
-
     st.subheader(t["sidebar_source"])
     st.write(t["source_live"] if all_bigquery else t["source_fallback"])
     for name in data.SOURCES:
@@ -89,40 +118,103 @@ geo = bundle["geo"]["df"]
 category = bundle["category"]["df"]
 cohort = bundle["cohort"]["df"]
 
+# logical view -> (sql file, source tables)
+VIEW_META = {
+    "funnel": ("order_funnel.sql", ["olist_mart.mart_orders"]),
+    "stats": ("delay_review_ttest.sql", ["olist_mart.mart_delivery_features"]),
+    "delay": ("delay_threshold_analysis.sql", ["olist_mart.mart_delivery_features"]),
+    "geo": ("geo_matching_leadtime_analysis.sql", ["olist_mart.mart_order_items", "olist_mart.mart_orders"]),
+    "category": (
+        "category_delivery_review_by_category.sql",
+        ["olist_mart.mart_order_operational_funnel", "olist_raw.view_products_english", "olist_raw.order_reviews"],
+    ),
+    "retention": ("cohort_retention_by_delay_experience.sql", ["olist_mart.mart_orders"]),
+}
+# view name -> data bundle / source key
+BUNDLE_OF = {
+    "funnel": "funnel",
+    "stats": "ttest",
+    "delay": "delay",
+    "geo": "geo",
+    "category": "category",
+    "retention": "cohort",
+}
+
+
+def card(label: str, value: str, sub: str, color: str) -> str:
+    return (
+        f'<div class="mcard"><div class="mlabel">{label}</div>'
+        f'<div class="mvalue" style="color:{color}">{value}</div>'
+        f'<div class="msub">{sub}</div></div>'
+    )
+
+
+def cards_row(cards: list[str]) -> None:
+    st.markdown(f'<div class="mrow">{"".join(cards)}</div>', unsafe_allow_html=True)
+
+
+def data_lineage(view: str, animate: bool) -> None:
+    """Animated source -> query -> result strip + a live query status."""
+    sql_file, tables = VIEW_META[view]
+    bkey = BUNDLE_OF[view]
+    n = len(bundle[bkey]["df"])
+    src = bundle[bkey]["source"]
+    tbl = tables[0] + (f"  +{len(tables) - 1}" if len(tables) > 1 else "")
+    chips = (
+        f'<span class="chip chip-bq">{src}</span><span class="arrow">→</span>'
+        f'<span class="chip">{tbl}</span><span class="arrow">→</span>'
+        f'<span class="chip">{sql_file}</span><span class="arrow">→</span>'
+        f'<span class="chip chip-rows">{n} {t["rows"]}</span>'
+    )
+    st.markdown(f'<div class="lineage">{chips}</div>', unsafe_allow_html=True)
+    with st.status(t["query_running"], expanded=False) as s:
+        data.load(bkey)
+        if animate:
+            time.sleep(0.3)  # only on an actual view switch, so the live-query movement shows
+        st.code(data.get_sql(sql_file), language="sql")
+        s.update(label=t["query_done"].format(n=n), state="complete")
+
 
 # --------------------------------------------------------------------------- #
-# Header + KPI cards
+# Header + KPI number cards
 # --------------------------------------------------------------------------- #
 st.title(t["title"])
 st.caption(t["caption"])
 
-c1, c2, c3, c4 = st.columns(4)
-c1.metric(t["kpi_orders"], f"{int(kpi['total_orders']):,}", border=True)
-c2.metric(t["kpi_leadtime"], f"{kpi['avg_lead_time_days']:.1f} {t['unit_days']}", border=True)
-c3.metric(t["kpi_review"], f"{kpi['avg_review_score']:.2f} / 5", border=True)
-c4.metric(t["kpi_delay"], f"{kpi['delay_rate_pct']:.1f}%", border=True)
+cards_row(
+    [
+        card(t["kpi_orders"], f"{int(kpi['total_orders']):,}", "delivered", INK),
+        card(t["kpi_leadtime"], f"{kpi['avg_lead_time_days']:.1f}", t["unit_days"], TEAL),
+        card(t["kpi_review"], f"{kpi['avg_review_score']:.2f}", "/ 5", GREEN),
+        card(t["kpi_delay"], f"{kpi['delay_rate_pct']:.1f}%", "", RAUSCH),
+    ]
+)
 st.divider()
 
 
 # --------------------------------------------------------------------------- #
-# Tabs
+# View navigation (rerun on change -> lineage + query animate every switch)
 # --------------------------------------------------------------------------- #
-tabs = st.tabs(
-    [
-        t["tab_funnel"],
-        t["tab_stats"],
-        t["tab_delay"],
-        t["tab_geo"],
-        t["tab_category"],
-        t["tab_retention"],
-        t["tab_insights"],
-    ]
+VIEWS = ["funnel", "stats", "delay", "geo", "category", "retention", "insights"]
+view = st.segmented_control(
+    t["nav_label"],
+    VIEWS,
+    default="funnel",
+    format_func=lambda k: t[f"tab_{k}"],
+    key="view",
+    label_visibility="collapsed",
 )
-tab_funnel, tab_stats, tab_delay, tab_geo, tab_cat, tab_ret, tab_insight = tabs
+view = view or "funnel"
+view_changed = st.session_state.get("_prev_view") != view
+st.session_state["_prev_view"] = view
+st.write("")
+
+if view != "insights":
+    data_lineage(view, animate=view_changed)
 
 
 # ---- Funnel ---------------------------------------------------------------- #
-with tab_funnel:
+if view == "funnel":
     st.subheader(t["funnel_title"])
     stages = t["funnel_stages"]
     values = [int(funnel[c]) for c in ("purchased", "approved", "shipped", "delivered")]
@@ -131,7 +223,7 @@ with tab_funnel:
             y=stages,
             x=values,
             textinfo="value+percent initial",
-            marker_color=[PALETTE["blue"], PALETTE["teal"], PALETTE["yellow"], PALETTE["green"]],
+            marker_color=[PALETTE["blue"], TEAL, PALETTE["yellow"], GREEN],
             connector=dict(line=dict(color=PALETTE["gray"], width=1)),
         )
     )
@@ -147,14 +239,18 @@ with tab_funnel:
     )
     with st.expander(t["funnel_expander"]):
         st.dataframe(
-            pd.DataFrame({t["col_stage"]: stages, t["col_orders"]: values}),
+            pd.DataFrame({"stage": stages, "orders": values}),
             width="stretch",
             hide_index=True,
+            column_config={
+                "stage": st.column_config.TextColumn(t["c_stage"]),
+                "orders": st.column_config.NumberColumn(t["c_orders"], format="%d"),
+            },
         )
 
 
 # ---- Statistical test ------------------------------------------------------ #
-with tab_stats:
+elif view == "stats":
     st.subheader(t["stats_title"])
     st.info(t["stats_intro"])
 
@@ -170,10 +266,13 @@ with tab_stats:
     tcrit = stats.t.ppf(0.975, df_w)
     lo, hi = diff - tcrit * se, diff + tcrit * se
 
-    m1, m2, m3 = st.columns(3)
-    m1.metric(t["stats_group_ontime"], f"{m_o:.2f}", f"n = {int(n_o):,}", delta_color="off", border=True)
-    m2.metric(t["stats_group_delayed"], f"{m_d:.2f}", f"n = {int(n_d):,}", delta_color="off", border=True)
-    m3.metric(t["stats_diff"], f"+{diff:.2f}", f"d = {cohen_d:.2f}", delta_color="off", border=True)
+    cards_row(
+        [
+            card(t["stats_group_ontime"], f"{m_o:.2f}", f"n = {int(n_o):,}", GREEN),
+            card(t["stats_group_delayed"], f"{m_d:.2f}", f"n = {int(n_d):,}", RAUSCH),
+            card(t["stats_diff"], f"+{diff:.2f}", f"Cohen's d = {cohen_d:.2f}", VIOLET),
+        ]
+    )
 
     fig = go.Figure(
         go.Bar(
@@ -184,7 +283,7 @@ with tab_stats:
                 array=[1.96 * s_o / math.sqrt(n_o), 1.96 * s_d / math.sqrt(n_d)],
                 visible=True,
             ),
-            marker_color=[PALETTE["blue"], PALETTE["cross"]],
+            marker_color=[GREEN, RAUSCH],
             text=[f"{m_o:.2f}", f"{m_d:.2f}"],
             textposition="outside",
         )
@@ -202,7 +301,7 @@ with tab_stats:
 
 
 # ---- Delivery delay -------------------------------------------------------- #
-with tab_delay:
+elif view == "delay":
     st.subheader(t["delay_title"])
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_bar(
@@ -217,7 +316,7 @@ with tab_delay:
         x=delay["delay_bucket"],
         y=delay["low_score_rate_pct"],
         mode="lines+markers",
-        line=dict(color="#2F2F2F", width=2),
+        line=dict(color=INK, width=2),
         name=t["delay_legend_low"],
         secondary_y=True,
     )
@@ -228,44 +327,71 @@ with tab_delay:
     on_time = delay.loc[delay["delay_bucket"].str.startswith("D<=0"), "avg_review_score"].iloc[0]
     st.write(t["delay_text"].format(on_time=on_time, low=delay["low_score_rate_pct"].max()))
     with st.expander(t["delay_expander"]):
-        st.dataframe(delay, width="stretch", hide_index=True)
+        st.dataframe(
+            delay,
+            width="stretch",
+            hide_index=True,
+            column_config={
+                "delay_bucket": st.column_config.TextColumn(t["c_bucket"]),
+                "order_count": st.column_config.NumberColumn(t["c_orders"], format="%d"),
+                "avg_delay_days": st.column_config.NumberColumn(t["c_avg_delay"], format="%.1f"),
+                "avg_review_score": st.column_config.ProgressColumn(
+                    t["c_avg_review"], format="%.2f", min_value=0, max_value=5
+                ),
+                "low_score_rate_pct": st.column_config.NumberColumn(t["c_low_rate"], format="%.1f%%"),
+            },
+        )
 
 
 # ---- Geo matching ---------------------------------------------------------- #
-with tab_geo:
+elif view == "geo":
     st.subheader(t["geo_title"])
+    cards_row(
+        [
+            card(
+                vl[row["state_match_type"]],
+                f"{row['avg_lead_time_days']:.1f} {t['unit_days']}",
+                t["geo_delay_rate"].format(v=row["delay_rate_pct"]),
+                GREEN if row["state_match_type"] == "Same State" else RAUSCH,
+            )
+            for _, row in geo.iterrows()
+        ]
+    )
     geo_sorted = geo.sort_values("avg_lead_time_days")
     fig = go.Figure()
     fig.add_bar(
         y=[vl[v] for v in geo_sorted["state_match_type"]],
         x=geo_sorted["avg_lead_time_days"],
         orientation="h",
-        marker_color=[
-            PALETTE["green"] if v == "Same State" else PALETTE["cross"]
-            for v in geo_sorted["state_match_type"]
-        ],
+        marker_color=[GREEN if v == "Same State" else RAUSCH for v in geo_sorted["state_match_type"]],
         text=[f"{v:.2f} {t['unit_days']}" for v in geo_sorted["avg_lead_time_days"]],
         textposition="outside",
     )
     fig.update_layout(xaxis_title=t["geo_axis"], **PLOTLY_LAYOUT)
     st.plotly_chart(fig, use_container_width=True)
-
-    cols = st.columns(len(geo))
-    for col, (_, row) in zip(cols, geo.iterrows()):
-        col.metric(
-            vl[row["state_match_type"]],
-            f"{row['avg_lead_time_days']:.1f} {t['unit_days']}",
-            t["geo_delay_rate"].format(v=row["delay_rate_pct"]),
-            delta_color="off",
-            border=True,
-        )
     st.write(t["geo_text"])
     with st.expander(t["geo_expander"]):
-        st.dataframe(geo, width="stretch", hide_index=True)
+        geo_disp = geo.copy()
+        geo_disp["state_match_type"] = geo_disp["state_match_type"].map(vl)
+        st.dataframe(
+            geo_disp,
+            width="stretch",
+            hide_index=True,
+            column_config={
+                "state_match_type": st.column_config.TextColumn(t["c_match"]),
+                "order_count": st.column_config.NumberColumn(t["c_orders"], format="%d"),
+                "avg_lead_time_days": st.column_config.NumberColumn(t["c_avg_leadtime"], format="%.1f"),
+                "avg_delay_days": st.column_config.NumberColumn(t["c_avg_delay"], format="%.1f"),
+                "avg_review_score": st.column_config.ProgressColumn(
+                    t["c_avg_review"], format="%.2f", min_value=0, max_value=5
+                ),
+                "delay_rate_pct": st.column_config.NumberColumn(t["c_delay_rate"], format="%.2f%%"),
+            },
+        )
 
 
 # ---- Category -------------------------------------------------------------- #
-with tab_cat:
+elif view == "category":
     st.subheader(t["cat_title"])
     min_orders = st.slider(
         t["cat_slider"],
@@ -308,52 +434,56 @@ with tab_cat:
     st.write(t["cat_weak"])
     weak = cat[(cat["avg_lead_time"] > avg_lead) & (cat["avg_review_score"] < avg_rev)]
     weak = weak.sort_values("avg_review_score").head(8)
-    weak = weak[["category_name_en", "total_orders", "avg_lead_time", "avg_review_score"]].rename(
-        columns={
-            "category_name_en": t["cat_col_name"],
-            "total_orders": t["cat_col_orders"],
-            "avg_lead_time": t["cat_col_lead"],
-            "avg_review_score": t["cat_col_review"],
-        }
+    st.dataframe(
+        weak[["category_name_en", "total_orders", "avg_lead_time", "avg_review_score"]],
+        width="stretch",
+        hide_index=True,
+        column_config={
+            "category_name_en": st.column_config.TextColumn(t["cat_col_name"]),
+            "total_orders": st.column_config.NumberColumn(t["c_orders"], format="%d"),
+            "avg_lead_time": st.column_config.NumberColumn(t["c_avg_leadtime"], format="%.1f"),
+            "avg_review_score": st.column_config.ProgressColumn(
+                t["c_avg_review"], format="%.2f", min_value=0, max_value=5
+            ),
+        },
     )
-    st.dataframe(weak, width="stretch", hide_index=True)
 
 
 # ---- Retention ------------------------------------------------------------- #
-def build_retention_curve(df: pd.DataFrame, max_index: int = 12) -> pd.DataFrame:
-    df = df.copy()
-    df["cohort_month"] = pd.to_datetime(df["cohort_month"])
-    cohorts = df[["cohort_month", "first_order_delay_group", "cohort_size"]].drop_duplicates()
-    rows = []
-    for _, r in cohorts.iterrows():
-        for idx in range(max_index + 1):
-            rows.append(
-                {
-                    "cohort_month": r["cohort_month"],
-                    "first_order_delay_group": r["first_order_delay_group"],
-                    "cohort_size": r["cohort_size"],
-                    "cohort_index": idx,
-                }
-            )
-    grid = pd.DataFrame(rows)
-    observed = df[["cohort_month", "first_order_delay_group", "cohort_index", "retained_customers"]]
-    merged = grid.merge(
-        observed, on=["cohort_month", "first_order_delay_group", "cohort_index"], how="left"
-    )
-    merged["retained_customers"] = merged["retained_customers"].fillna(0)
-    summary = merged.groupby(
-        ["first_order_delay_group", "cohort_index"], as_index=False
-    ).agg({"retained_customers": "sum", "cohort_size": "sum"})
-    summary["retention_rate"] = summary["retained_customers"] / summary["cohort_size"]
-    return summary[(summary["cohort_index"] >= 1) & (summary["cohort_index"] <= max_index)]
+elif view == "retention":
 
+    def build_retention_curve(df: pd.DataFrame, max_index: int = 12) -> pd.DataFrame:
+        df = df.copy()
+        df["cohort_month"] = pd.to_datetime(df["cohort_month"])
+        cohorts = df[["cohort_month", "first_order_delay_group", "cohort_size"]].drop_duplicates()
+        rows = []
+        for _, r in cohorts.iterrows():
+            for idx in range(max_index + 1):
+                rows.append(
+                    {
+                        "cohort_month": r["cohort_month"],
+                        "first_order_delay_group": r["first_order_delay_group"],
+                        "cohort_size": r["cohort_size"],
+                        "cohort_index": idx,
+                    }
+                )
+        grid = pd.DataFrame(rows)
+        observed = df[["cohort_month", "first_order_delay_group", "cohort_index", "retained_customers"]]
+        merged = grid.merge(
+            observed, on=["cohort_month", "first_order_delay_group", "cohort_index"], how="left"
+        )
+        merged["retained_customers"] = merged["retained_customers"].fillna(0)
+        summary = merged.groupby(
+            ["first_order_delay_group", "cohort_index"], as_index=False
+        ).agg({"retained_customers": "sum", "cohort_size": "sum"})
+        summary["retention_rate"] = summary["retained_customers"] / summary["cohort_size"]
+        return summary[(summary["cohort_index"] >= 1) & (summary["cohort_index"] <= max_index)]
 
-with tab_ret:
     st.subheader(t["ret_title"])
     st.info(t["ret_info"])
     curve = build_retention_curve(cohort)
     fig = go.Figure()
-    palette = {"Delayed First Order": PALETTE["cross"], "On-time/Early First Order": PALETTE["blue"]}
+    palette = {"Delayed First Order": RAUSCH, "On-time/Early First Order": GREEN}
     for group, g in curve.groupby("first_order_delay_group"):
         fig.add_scatter(
             x=g["cohort_index"],
@@ -367,7 +497,7 @@ with tab_ret:
 
 
 # ---- Insights -------------------------------------------------------------- #
-with tab_insight:
+elif view == "insights":
     st.subheader(t["insights_title"])
     st.markdown(t["insights_body"])
     st.caption(t["insights_caption"])

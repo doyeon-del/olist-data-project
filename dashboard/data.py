@@ -102,3 +102,9 @@ def load(name: str) -> dict:
 
 def load_all() -> dict:
     return {name: load(name) for name in SOURCES}
+
+
+def get_sql(name_or_file: str) -> str:
+    """Return the SQL text for a logical query name or a raw filename."""
+    filename = SOURCES[name_or_file][0] if name_or_file in SOURCES else name_or_file
+    return _read_sql(filename)
