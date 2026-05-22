@@ -144,6 +144,16 @@ python3 python_scripts/create_analysis_figures.py
 95% 신뢰구간을 적용합니다. Olist에는 실험 데이터가 없으므로 이는 무작위 배정 A/B
 테스트가 아니라 **관찰적 비교**이며, 탭에 그 한계를 명시합니다.
 
+### 디자인 / 폰트
+
+흰 캔버스 · 잉크(#171717) 본문 · 블랙 프라이머리 · 헤어라인 보더 · 8px 라운드의
+에디토리얼 톤으로 구성했습니다. 타이포그래피는 **PretendardGOV** 단일 폰트입니다.
+
+가변 폰트(`dashboard/static/fonts/PretendardGOVVariable.woff2`, SIL OFL 1.1)를
+리포에 동봉하고, Streamlit 정적 서빙(`enableStaticServing`) + `[[theme.fontFaces]]`로
+로드합니다. 따라서 별도 폰트 설치 없이 로컬·배포 어디서나 동일하게 렌더됩니다.
+폰트 라이선스: `dashboard/static/fonts/LICENSE.txt`.
+
 데이터 소스:
 
 - **기본: BigQuery** — `dashboard/data.py`가 `sql/analysis/*.sql`을 그대로 실행합니다

@@ -1,10 +1,49 @@
-[theme]
-base = "light"
-primaryColor = "#4C78A8"
-backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#F5F6F8"
-textColor = "#2F2F2F"
-font = "sans serif"
-
 [server]
 headless = true
+enableStaticServing = true
+
+# PretendardGOV (vendored under static/fonts, SIL OFL 1.1). One variable file
+# serves every weight; the browser fetches it once and caches it.
+[[theme.fontFaces]]
+family = "PretendardGOV"
+url = "app/static/fonts/PretendardGOVVariable.woff2"
+weight = 400
+style = "normal"
+
+[[theme.fontFaces]]
+family = "PretendardGOV"
+url = "app/static/fonts/PretendardGOVVariable.woff2"
+weight = 500
+style = "normal"
+
+[[theme.fontFaces]]
+family = "PretendardGOV"
+url = "app/static/fonts/PretendardGOVVariable.woff2"
+weight = 600
+style = "normal"
+
+[[theme.fontFaces]]
+family = "PretendardGOV"
+url = "app/static/fonts/PretendardGOVVariable.woff2"
+weight = 700
+style = "normal"
+
+[theme]
+base = "light"
+primaryColor = "#000000"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#fafafa"
+textColor = "#171717"
+linkColor = "#0d74ce"
+borderColor = "#dcdee0"
+dataframeBorderColor = "#f0f0f3"
+codeBackgroundColor = "#f0f0f3"
+showWidgetBorder = true
+showSidebarBorder = true
+baseRadius = "0.5rem"
+buttonRadius = "0.5rem"
+font = "PretendardGOV"
+headingFont = "PretendardGOV"
+codeFont = "PretendardGOV"
+baseFontWeight = 400
+headingFontWeights = [600, 600, 600, 600, 600, 600]

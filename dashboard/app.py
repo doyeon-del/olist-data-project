@@ -18,6 +18,25 @@ import i18n
 
 st.set_page_config(page_title="Olist Delivery & Experience Dashboard", layout="wide")
 
+# Editorial polish on top of the native theme (config.toml): tighter display
+# tracking and antialiasing, in the Expo/Inter-style register but set in PretendardGOV.
+st.markdown(
+    """
+    <style>
+      html, body, [class*="css"] { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+      h1 { font-weight: 600; letter-spacing: -0.03em; font-size: 2.6rem; line-height: 1.08; }
+      h2, h3 { font-weight: 600; letter-spacing: -0.02em; }
+      [data-testid="stMetricValue"] { font-weight: 600; letter-spacing: -0.02em; }
+      [data-testid="stMetricLabel"] p { color: #60646c; font-weight: 500; }
+      .stTabs [data-baseweb="tab"] { font-weight: 500; }
+      [data-testid="stCaptionContainer"] { color: #60646c; }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+FONT_STACK = "PretendardGOV, -apple-system, system-ui, sans-serif"
+
 PALETTE = {
     "blue": "#4C78A8",
     "teal": "#72B7B2",
@@ -33,7 +52,10 @@ BUCKET_COLORS = [PALETTE[c] for c in ("blue", "teal", "yellow", "orange", "red",
 PLOTLY_LAYOUT = dict(
     template="plotly_white",
     margin=dict(l=10, r=10, t=40, b=10),
-    title_font=dict(size=15),
+    font=dict(family=FONT_STACK, color="#171717", size=13),
+    title_font=dict(family=FONT_STACK, size=15),
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
 )
 
@@ -75,10 +97,10 @@ st.title(t["title"])
 st.caption(t["caption"])
 
 c1, c2, c3, c4 = st.columns(4)
-c1.metric(t["kpi_orders"], f"{int(kpi['total_orders']):,}")
-c2.metric(t["kpi_leadtime"], f"{kpi['avg_lead_time_days']:.1f} {t['unit_days']}")
-c3.metric(t["kpi_review"], f"{kpi['avg_review_score']:.2f} / 5")
-c4.metric(t["kpi_delay"], f"{kpi['delay_rate_pct']:.1f}%")
+c1.metric(t["kpi_orders"], f"{int(kpi['total_orders']):,}", border=True)
+c2.metric(t["kpi_leadtime"], f"{kpi['avg_lead_time_days']:.1f} {t['unit_days']}", border=True)
+c3.metric(t["kpi_review"], f"{kpi['avg_review_score']:.2f} / 5", border=True)
+c4.metric(t["kpi_delay"], f"{kpi['delay_rate_pct']:.1f}%", border=True)
 st.divider()
 
 
@@ -149,9 +171,9 @@ with tab_stats:
     lo, hi = diff - tcrit * se, diff + tcrit * se
 
     m1, m2, m3 = st.columns(3)
-    m1.metric(t["stats_group_ontime"], f"{m_o:.2f}", f"n = {int(n_o):,}", delta_color="off")
-    m2.metric(t["stats_group_delayed"], f"{m_d:.2f}", f"n = {int(n_d):,}", delta_color="off")
-    m3.metric(t["stats_diff"], f"+{diff:.2f}", f"d = {cohen_d:.2f}", delta_color="off")
+    m1.metric(t["stats_group_ontime"], f"{m_o:.2f}", f"n = {int(n_o):,}", delta_color="off", border=True)
+    m2.metric(t["stats_group_delayed"], f"{m_d:.2f}", f"n = {int(n_d):,}", delta_color="off", border=True)
+    m3.metric(t["stats_diff"], f"+{diff:.2f}", f"d = {cohen_d:.2f}", delta_color="off", border=True)
 
     fig = go.Figure(
         go.Bar(
@@ -235,6 +257,7 @@ with tab_geo:
             f"{row['avg_lead_time_days']:.1f} {t['unit_days']}",
             t["geo_delay_rate"].format(v=row["delay_rate_pct"]),
             delta_color="off",
+            border=True,
         )
     st.write(t["geo_text"])
     with st.expander(t["geo_expander"]):
