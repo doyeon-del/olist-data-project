@@ -1,14 +1,14 @@
-# Olist E-commerce Data Analysis Portfolio
+# Olist E-commerce Data 분석 프로젝트
 
-브라질 Olist 이커머스 데이터를 기반으로, 마켓플레이스 운영 병목과 고객 경험/리텐션에 영향을 주는 요인을 분석하는 프로젝트입니다.
+브라질 Olist 이커머스 데이터를 기반으로, 마켓플레이스 운영 과정에서 발생하는 병목과 고객 경험 및 리텐션에 영향을 주는 요인을 분석하는 프로젝트입니다.
 
-## Project Goal
+## 프로젝트 목표
 
 1. 주문-배송 퍼널 병목 구간 진단
 2. 배송 성과와 고객 만족도(리뷰 점수) 관계 분석
 3. 코호트 리텐션/공급-수요 매칭으로 확장 가능한 분석 자산 구축
 
-## Repository Structure
+## 리포지토리 구조
 
 ```text
 olist-data-project/
@@ -26,9 +26,9 @@ olist-data-project/
 └── docs/             # Obsidian 문서 링크
 ```
 
-## Current Progress
+## 완료된 부분 정리
 
-**SQL 분석 자산 → BigQuery 결과 → 시각화 → 인터랙티브 대시보드**까지 완료된 상태입니다.
+**SQL 분석 자산 → BigQuery 결과 → 시각화 → 인터랙티브 대시보드** 구성
 
 완료:
 
@@ -53,33 +53,33 @@ olist-data-project/
 - `sql/analysis/cohort_retention_by_delay_experience.sql`
 - `sql/analysis/category_delivery_review_by_category.sql`
 
-## Key Findings
+## 핵심 인사이트
 
-### 1. Review scores drop sharply after 3+ days of delay
+### 1. 3일 이상의 딜레이가 발생할 경우, 고객 리뷰의 점수가 급락한다.
 
 ![Delay threshold review score](results/figures/delay_threshold_review_score.png)
 
 정시/조기 배송 주문의 평균 리뷰 점수는 **4.28**입니다. 1~2일 지연 시 **3.50**으로 하락하고, 3~4일 지연부터는 **2.58**까지 급락합니다. 낮은 리뷰 비율도 3~4일 지연 구간에서 **53.52%**까지 상승합니다.
 
-### 2. Cross-state orders take about twice as long to deliver
+### 2. 다른 주 간의 배송은 동일 주 내 배송보다 두 배 이상 걸렸다.
 
 ![Geo matching leadtime](results/figures/geo_matching_leadtime.png)
 
-동일 주 배송의 평균 리드타임은 **7.48일**, 타 주 배송은 **14.68일**입니다. 지역 매칭은 배송 성과를 설명하는 핵심 변수로 볼 수 있습니다.
+동일 주 배송의 평균 리드타임은 **7.48일**, 타 주 배송은 **14.68일**입니다.
 
-### 3. Post-first-month retention stays below 1%
+### 3. 첫 구매 이후 월 별 리텐션은 1% 이하에 머물러 있다.
 
 ![Cohort retention by delay](results/figures/cohort_retention_by_delay.png)
 
 첫 구매 이후 월별 리텐션은 전반적으로 매우 낮습니다. 첫 주문 지연 경험별 비교는 가능하지만, 코호트별 retained customer 수가 작기 때문에 표본 안정성 검토가 필요합니다.
 
-### 4. Office furniture is the weakest category in delivery experience
+### 4. Office furniture 카테고리는 가장 낮은 배달 경험을 제공한다.
 
 ![Category delivery review](results/figures/category_delivery_review_bubble.png)
 
 `office_furniture`는 평균 리드타임이 **20.39일**로 가장 길고, 평균 리뷰 점수도 **3.50**으로 가장 낮습니다. 예상 배송일 대비 평균 지연이 음수여도, 고객이 체감하는 총 대기 시간이 길면 만족도에 부정적 영향을 줄 수 있습니다.
 
-## BigQuery + Local Workflow
+## BigQuery 기반으로 로컬 환경에서 시행하는 방법
 
 원칙:
 
@@ -112,7 +112,7 @@ gcloud config set project <YOUR_GCP_PROJECT_ID>
 bq version
 ```
 
-## Auto Export Script
+## 자동 추출 SQL 스크립트
 
 아래 스크립트로 SQL 파일을 실행하고 결과를 바로 CSV로 저장할 수 있습니다.
 
@@ -126,7 +126,7 @@ bash python_scripts/run_bq_query_to_csv.sh \
 
 - `results/tables/category_delivery_review_by_category_YYYYMMDD_HHMMSS.csv`
 
-## Generate Figures
+## Figures 생성
 
 아래 스크립트로 `results/tables`의 CSV를 읽어 `results/figures`에 PNG 차트를 생성합니다.
 
@@ -134,7 +134,7 @@ bash python_scripts/run_bq_query_to_csv.sh \
 python3 python_scripts/create_analysis_figures.py
 ```
 
-## Interactive Dashboard (Streamlit + BigQuery)
+## 인터렉티브 대시보드 구성 - Streamlit과 BigQuery 활용
 
 `dashboard/app.py`는 KPI 카드와 6개 탭(퍼널 / 통계 검정 / 배송 지연 / 지역 매칭 /
 카테고리 / 리텐션), 인사이트 섹션으로 구성된 인터랙티브 대시보드입니다.
