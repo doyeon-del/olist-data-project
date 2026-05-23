@@ -10,7 +10,9 @@
 
 ## 데이터 출처
 
-[Brazilian E-Commerce Public Dataset by Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) (Kaggle · 라이선스 CC BY-NC-SA 4.0)를 사용합니다. 브라질 이커머스 플랫폼 Olist의 **2016–2018년 실제 주문 약 10만 건**을 익명화한 공개 데이터셋이며, 원천 테이블을 BigQuery `olist_raw`로 적재해 사용합니다.
+[Brazilian E-Commerce Public Dataset by Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) (Kaggle · 라이선스 CC BY-NC-SA 4.0)를 사용합니다. 
+
+브라질 이커머스 플랫폼 Olist의 **2016–2018년 실제 주문 약 10만 건**을 익명화한 공개 데이터셋이며, 원천 테이블을 BigQuery `olist_raw`로 적재해 사용합니다.
 
 | 테이블 | 내용 |
 |---|---|
@@ -30,7 +32,6 @@
 | **SQL** | 정제(staging) → 분석용 통합 마트(marts) → 질문별 분석(analysis)으로 계층화해 재현성·재사용성 확보 |
 | **Python** | `pandas`(데이터 처리), `scipy`(통계 검정), `matplotlib`(정적 차트) |
 | **Streamlit + Plotly** | 인터랙티브 대시보드. 코드가 레포에 남고 무료로 배포 가능 |
-| **PretendardGOV** | 한글·영문 단일 가변 폰트 (리포 동봉, SIL OFL 1.1) |
 | **gcloud / bq CLI · Git** | 인증·쿼리 실행, 버전 관리 |
 
 ## 리포지토리 구조
@@ -51,7 +52,7 @@ olist-data-project/
 └── docs/             # Obsidian 문서 링크
 ```
 
-## 완료된 부분 정리
+## 작업 과정
 
 **SQL 분석 자산 → BigQuery 결과 → 시각화 → 인터랙티브 대시보드** 구성
 
@@ -113,6 +114,9 @@ olist-data-project/
 - **Welch t-검정 + Cohen's d + 95% 신뢰구간** — 지연군 vs 정시군의 평균 리뷰 차이를 검정합니다. 두 집단의 분산·표본 크기 차이가 커서 등분산을 가정하는 Student t 대신 **Welch's t**를 사용했습니다. 표본이 커서 p값은 거의 0이 되므로, 실질적 크기는 **효과크기(Cohen's d)와 신뢰구간**으로 판단합니다. 무작위 배정 실험이 아니므로 **인과가 아닌 관찰적 비교**임을 명시합니다(A/B 테스트와 구분).
 - **코호트 리텐션 분석** — 첫 주문 월을 기준으로 월별 재구매(잔존)율을 추적합니다. 단, Olist는 재구매가 희소해(리텐션 1% 미만) 코호트별 표본이 작으므로 **방향성 참고**로만 해석합니다.
 
+
+---
+
 ## BigQuery 기반으로 로컬 환경에서 시행하는 방법
 
 원칙:
@@ -128,45 +132,7 @@ olist-data-project/
 4. 차트 생성 후 `results/figures` 반영
 5. README/docs에 인사이트 업데이트
 
-## Quick Start (CLI)
-
-사전 준비:
-
-1. Google Cloud SDK 설치
-2. 인증
-
-```bash
-gcloud auth application-default login
-gcloud config set project <YOUR_GCP_PROJECT_ID>
-```
-
-3. `bq` 명령 확인
-
-```bash
-bq version
-```
-
-## 자동 추출 SQL 스크립트
-
-아래 스크립트로 SQL 파일을 실행하고 결과를 바로 CSV로 저장할 수 있습니다.
-
-```bash
-bash python_scripts/run_bq_query_to_csv.sh \
-  sql/analysis/category_delivery_review_by_category.sql \
-  category_delivery_review_by_category
-```
-
-결과 예시:
-
-- `results/tables/category_delivery_review_by_category_YYYYMMDD_HHMMSS.csv`
-
-## Figures 생성
-
-아래 스크립트로 `results/tables`의 CSV를 읽어 `results/figures`에 PNG 차트를 생성합니다.
-
-```bash
-python3 python_scripts/create_analysis_figures.py
-```
+---
 
 ## 인터렉티브 대시보드 구성 - Streamlit과 BigQuery 활용
 
@@ -178,22 +144,15 @@ python3 python_scripts/create_analysis_figures.py
 95% 신뢰구간을 적용합니다. Olist에는 실험 데이터가 없으므로 이는 무작위 배정 A/B
 테스트가 아니라 **관찰적 비교**이며, 탭에 그 한계를 명시합니다.
 
-### 디자인 / 폰트
 
-흰 캔버스 · 잉크(#171717) 본문 · 블랙 프라이머리 · 헤어라인 보더 · 8px 라운드의
-에디토리얼 톤으로 구성했습니다. 타이포그래피는 **PretendardGOV** 단일 폰트입니다.
-
-가변 폰트(`dashboard/static/fonts/PretendardGOVVariable.woff2`, SIL OFL 1.1)를
-리포에 동봉하고, Streamlit 정적 서빙(`enableStaticServing`) + `[[theme.fontFaces]]`로
-로드합니다. 따라서 별도 폰트 설치 없이 로컬·배포 어디서나 동일하게 렌더됩니다.
-폰트 라이선스: `dashboard/static/fonts/LICENSE.txt`.
-
-데이터 소스:
+### 데이터 소스:
 
 - **기본: BigQuery** — `dashboard/data.py`가 `sql/analysis/*.sql`을 그대로 실행합니다
   (분석 파이프라인과 단일 소스 공유).
 - **폴백: CSV** — 자격증명이 없으면 `results/tables`의 커밋된 CSV로 자동 전환되어,
   인증 없이도 대시보드를 띄울 수 있습니다.
+
+---
 
 ### 로컬 실행
 
@@ -206,47 +165,3 @@ gcloud auth application-default login
 
 streamlit run dashboard/app.py
 ```
-
-기본 프로젝트는 `olist-analysis-project-495210`이며, `.streamlit/secrets.toml`로 덮어쓸 수
-있습니다 (`.streamlit/secrets.toml.example` 참고).
-
-### 배포 (Streamlit Community Cloud)
-
-1. 이 레포를 연결하고 main file을 `dashboard/app.py`로 지정합니다.
-2. 앱 Settings → Secrets에 서비스 계정 키(`[gcp_service_account]`)를 붙여넣습니다
-   (BigQuery Data Viewer + Job User 권한). 생략하면 CSV 폴백으로 동작합니다.
-
-## 향후 계획 (ML 확장) — 미구현
-
-> 아래 Phase 2–4(ML)는 **현재 미구현**인 확장 계획입니다. 지금 레포에 학습된 ML 모델은 없으며, Phase 1(SQL 분석)은 위에서 완료된 상태입니다.
-
-### Phase 1. SQL Analytics Completion
-
-1. 배송 지연 구간별 만족도 하락 임계점 분석
-2. 카테고리/지역별 리드타임 편차 분석
-3. 코호트 리텐션(재구매율) 분석 연결
-
-### Phase 2. ML-ready Dataset
-
-1. 예측 타깃 정의: `is_delayed`(지연 여부) 또는 `delay_days`(지연 일수)
-2. 피처 엔지니어링:
-   - 주문 시점 정보(월/요일/시간대)
-   - 상품 카테고리/규격(무게, 부피)
-   - 판매자/고객 지역 정보
-   - 결제 방식, 배송비, 주문 금액
-3. 학습용 스냅샷 테이블 생성(`mart_delivery_ml_base`)
-
-### Phase 3. Predictive Modeling
-
-1. 기준 모델(Baseline): Logistic Regression / Random Forest
-2. 성능 지표:
-   - 분류(`is_delayed`): ROC-AUC, F1, Precision/Recall
-   - 회귀(`delay_days`): MAE, RMSE
-3. 해석:
-   - Feature Importance/SHAP로 지연 기여 요인 도출
-
-### Phase 4. Operationalization
-
-1. 예측 결과를 BigQuery 테이블로 적재
-2. `results/tables`, `results/figures` 자동 갱신
-3. 대시보드에서 "지연 위험 주문" 모니터링
