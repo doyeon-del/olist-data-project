@@ -92,8 +92,15 @@ TEXT = {
         "예상일을 놓치는 비율도 더 낮습니다.",
         "geo_expander": "쿼리 결과",
         # category
-        "cat_title": "카테고리별 리드타임 vs 리뷰 점수",
-        "cat_slider": "카테고리 최소 주문 수",
+        "cat_title": "상품 카테고리별 리드타임 vs 리뷰 점수",
+        "cat_desc": "여기서 '카테고리'는 Olist의 **상품 종류**예요(예: bed_bath_table 침구·욕실, "
+        "office_furniture 사무가구). 점 하나가 카테고리 하나이고, 가로축은 평균 배송 리드타임, "
+        "세로축은 평균 리뷰 점수, 점 크기는 주문 수입니다. 점선은 전체 평균선이라, "
+        "오른쪽 아래(느린 배송 + 낮은 평점)에 있을수록 취약한 카테고리예요.",
+        "cat_slider": "표시할 카테고리 — 최소 주문 수",
+        "cat_slider_help": "선택한 값 이상 주문된 카테고리만 표시해요. 주문이 적은 카테고리를 "
+        "걸러내 평균 비교를 안정적으로 만듭니다.",
+        "cat_shown": "표시 중인 카테고리: {n}개",
         "cat_x": "평균 리드타임 (일)",
         "cat_y": "평균 리뷰 점수",
         "cat_hover_lead": "리드타임",
@@ -209,8 +216,16 @@ office_furniture 같은 카테고리는 가장 긴 리드타임과 가장 낮은
         "geo_text": "Orders shipped within the customer's own state arrive in about half the "
         "time and miss the estimate less often.",
         "geo_expander": "Query result",
-        "cat_title": "Lead time vs. review score by category",
-        "cat_slider": "Minimum orders per category",
+        "cat_title": "Lead time vs. review score by product category",
+        "cat_desc": "Here a \"category\" is an Olist **product category** (e.g., bed_bath_table, "
+        "office_furniture). Each dot is one category: x is average delivery lead time, y is "
+        "average review score, and dot size is order count. The dashed lines are the overall "
+        "averages, so categories toward the bottom-right (slow delivery + low ratings) are the "
+        "weak ones.",
+        "cat_slider": "Show categories with at least this many orders",
+        "cat_slider_help": "Only categories with at least this many orders are shown, filtering "
+        "out small-sample categories so the comparison is more stable.",
+        "cat_shown": "{n} categories shown",
         "cat_x": "Average lead time (days)",
         "cat_y": "Average review score",
         "cat_hover_lead": "Lead time",

@@ -35,7 +35,7 @@ PLOTLY_LAYOUT = dict(
     template="plotly_white",
     margin=dict(l=10, r=10, t=40, b=10),
     font=dict(family=FONT_STACK, color=INK, size=13),
-    title_font=dict(family=FONT_STACK, size=15),
+    title=dict(text=""),
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
@@ -192,10 +192,12 @@ st.divider()
 # View navigation (rerun on change -> lineage + query animate every switch)
 # --------------------------------------------------------------------------- #
 VIEWS = ["funnel", "stats", "delay", "geo", "category", "retention", "insights"]
+_qp_view = st.query_params.get("view")
+_default_view = _qp_view if _qp_view in VIEWS else "funnel"
 view = st.segmented_control(
     t["nav_label"],
     VIEWS,
-    default="funnel",
+    default=_default_view,
     format_func=lambda k: t[f"tab_{k}"],
     key="view",
     label_visibility="collapsed",
@@ -389,14 +391,17 @@ elif view == "geo":
 # ---- Category -------------------------------------------------------------- #
 elif view == "category":
     st.subheader(t["cat_title"])
+    st.caption(t["cat_desc"])
     min_orders = st.slider(
         t["cat_slider"],
         int(category["total_orders"].min()),
         int(category["total_orders"].max()),
         int(max(category["total_orders"].min(), 100)),
         step=50,
+        help=t["cat_slider_help"],
     )
     cat = category[category["total_orders"] >= min_orders].copy()
+    st.caption(t["cat_shown"].format(n=len(cat)))
     avg_lead = cat["avg_lead_time"].mean()
     avg_rev = cat["avg_review_score"].mean()
     fig = go.Figure()
