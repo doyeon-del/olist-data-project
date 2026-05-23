@@ -8,6 +8,31 @@
 2. 배송 성과와 고객 만족도(리뷰 점수) 관계 분석
 3. 코호트 리텐션/공급-수요 매칭으로 확장 가능한 분석 자산 구축
 
+## 데이터 출처
+
+[Brazilian E-Commerce Public Dataset by Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) (Kaggle · 라이선스 CC BY-NC-SA 4.0)를 사용합니다. 브라질 이커머스 플랫폼 Olist의 **2016–2018년 실제 주문 약 10만 건**을 익명화한 공개 데이터셋이며, 원천 테이블을 BigQuery `olist_raw`로 적재해 사용합니다.
+
+| 테이블 | 내용 |
+|---|---|
+| `orders` | 주문 상태, 구매·승인·택배사 인계·고객 수령·예상 배송 시점 |
+| `order_items` | 주문별 상품·판매자·가격·배송비 |
+| `customers` / `sellers` | 고객·판매자 ID 및 지역(주) |
+| `products` | 상품 카테고리·무게·크기 |
+| `order_reviews` | 1–5점 리뷰 점수 |
+| `order_payments` | 결제 방식·금액 |
+| `product_category_name_translation` | 카테고리명 영문 번역 |
+
+## 기술 스택
+
+| 도구 | 용도 / 선택 이유 |
+|---|---|
+| **BigQuery** | 원천 테이블을 조인·집계하는 클라우드 데이터 웨어하우스. `raw → staging → mart → analysis` 계층 모델링에 적합 |
+| **SQL** | 정제(staging) → 분석용 통합 마트(marts) → 질문별 분석(analysis)으로 계층화해 재현성·재사용성 확보 |
+| **Python** | `pandas`(데이터 처리), `scipy`(통계 검정), `matplotlib`(정적 차트) |
+| **Streamlit + Plotly** | 인터랙티브 대시보드. 코드가 레포에 남고 무료로 배포 가능 |
+| **PretendardGOV** | 한글·영문 단일 가변 폰트 (리포 동봉, SIL OFL 1.1) |
+| **gcloud / bq CLI · Git** | 인증·쿼리 실행, 버전 관리 |
+
 ## 리포지토리 구조
 
 ```text
@@ -78,6 +103,15 @@ olist-data-project/
 ![Category delivery review](results/figures/category_delivery_review_bubble.png)
 
 `office_furniture`는 평균 리드타임이 **20.39일**로 가장 길고, 평균 리뷰 점수도 **3.50**으로 가장 낮습니다. 예상 배송일 대비 평균 지연이 음수여도, 고객이 체감하는 총 대기 시간이 길면 만족도에 부정적 영향을 줄 수 있습니다.
+
+## 분석 방법론
+
+이 프로젝트는 **기술통계 + 통계적 추론**으로 구성됩니다. 예측 ML 모델은 아직 포함하지 않으며, 확장 계획은 하단 [향후 계획](#향후-계획-ml-확장--미구현) 섹션을 참고하세요.
+
+- **지연 구간 임계점 분석** — 예상일 대비 지연 일수를 구간화(D≤0, D+1\~2, D+3\~4 …)해 리뷰 점수가 급락하는 지점을 탐색합니다. 단순 선형 상관이 아니라 **비선형 임계 효과**를 드러내기 위함입니다.
+- **지역 매칭 관찰 비교** — 판매자–고객이 동일 주인지(Same State) 타 주인지(Cross State)에 따라 리드타임·지연율을 비교해 배송 속도의 구조적 요인을 진단합니다.
+- **Welch t-검정 + Cohen's d + 95% 신뢰구간** — 지연군 vs 정시군의 평균 리뷰 차이를 검정합니다. 두 집단의 분산·표본 크기 차이가 커서 등분산을 가정하는 Student t 대신 **Welch's t**를 사용했습니다. 표본이 커서 p값은 거의 0이 되므로, 실질적 크기는 **효과크기(Cohen's d)와 신뢰구간**으로 판단합니다. 무작위 배정 실험이 아니므로 **인과가 아닌 관찰적 비교**임을 명시합니다(A/B 테스트와 구분).
+- **코호트 리텐션 분석** — 첫 주문 월을 기준으로 월별 재구매(잔존)율을 추적합니다. 단, Olist는 재구매가 희소해(리텐션 1% 미만) 코호트별 표본이 작으므로 **방향성 참고**로만 해석합니다.
 
 ## BigQuery 기반으로 로컬 환경에서 시행하는 방법
 
@@ -182,7 +216,9 @@ streamlit run dashboard/app.py
 2. 앱 Settings → Secrets에 서비스 계정 키(`[gcp_service_account]`)를 붙여넣습니다
    (BigQuery Data Viewer + Job User 권한). 생략하면 CSV 폴백으로 동작합니다.
 
-## Roadmap (Analysis -> ML)
+## 향후 계획 (ML 확장) — 미구현
+
+> 아래 Phase 2–4(ML)는 **현재 미구현**인 확장 계획입니다. 지금 레포에 학습된 ML 모델은 없으며, Phase 1(SQL 분석)은 위에서 완료된 상태입니다.
 
 ### Phase 1. SQL Analytics Completion
 
