@@ -51,8 +51,10 @@ TEXT = {
         "funnel_title": "주문 처리 퍼널",
         "funnel_stages": ["구매", "승인", "택배사 인계", "배송 완료"],
         "funnel_text": "전체 {placed:,}건의 주문 중 {pct:.1f}%가 고객에게 도착합니다. "
-        "가장 큰 누수는 택배사→고객 구간({deliver:.1f}%)으로, "
-        "승인→택배사 구간({ship:.1f}%)보다 큽니다.",
+        "단계별 이탈은 승인→택배사 {ship:.1f}%, 택배사→고객 {deliver:.1f}%이고, "
+        "가장 큰 누수는 **{bottleneck}** 구간입니다.",
+        "funnel_leg_approve": "승인→택배사",
+        "funnel_leg_deliver": "택배사→고객",
         "funnel_expander": "단계별 건수",
         "col_stage": "단계",
         "col_orders": "주문 수",
@@ -138,6 +140,21 @@ office_furniture 같은 카테고리는 가장 긴 리드타임과 가장 낮은
 때문에 지연-리텐션 비교도 방향성 정도로만 읽어야 합니다.
 """,
         "insights_caption": "파이프라인: BigQuery 마트 → `sql/analysis/`의 집계 쿼리 → 본 대시보드.",
+        "insight_goto": "‘{tab}’ 탭에서 근거 보기 →",
+        "insight_1_title": "지연이 '속도'보다 만족도를 더 좌우합니다",
+        "insight_1_body": "정시·조기 배송의 평균 리뷰는 **{ontime:.2f}점**인데, 예상일보다 3~4일만 "
+        "늦어도 **{late:.2f}점**으로 떨어집니다. 핵심은 절대 배송 일수가 아니라 "
+        "'약속보다 늦었는가'예요.",
+        "insight_2_title": "거리가 배송 속도의 상한을 정합니다",
+        "insight_2_body": "동일 주 배송은 평균 **{same:.1f}일**, 타 주 배송은 **{cross:.1f}일**로 약 "
+        "두 배입니다. 지역별 판매자 구성이 리드타임을 좌우하는 구조적 변수예요.",
+        "insight_3_title": "배송 리스크는 일부 카테고리에 몰려 있습니다",
+        "insight_3_body": "`{cat}`는 평균 리드타임 **{lead:.1f}일**로 가장 길고 평균 리뷰도 "
+        "**{rev:.2f}점**으로 낮습니다. 마켓 전체에 단일 배송 예상일을 적용하면 이런 "
+        "카테고리엔 불리해요.",
+        "insight_4_title": "재구매는 거의 없습니다",
+        "insight_4_body": "첫 달 이후 리텐션이 모든 코호트에서 1% 미만이라, 첫 주문이 사실상 관계의 "
+        "전부입니다. 같은 희소성 때문에 지연-리텐션 비교도 방향성으로만 읽어야 해요.",
         "nav_label": "보기 선택",
         "rows": "행",
         "query_running": "BigQuery에서 쿼리 실행 중…",
@@ -178,9 +195,11 @@ office_furniture 같은 카테고리는 가장 긴 리드타임과 가장 낮은
         "tab_insights": "Insights",
         "funnel_title": "Order fulfillment funnel",
         "funnel_stages": ["Purchased", "Approved", "Shipped to carrier", "Delivered"],
-        "funnel_text": "Of {placed:,} placed orders, {pct:.1f}% reach the customer. The largest "
-        "leak is the carrier-to-customer leg ({deliver:.1f}% of orders), ahead of "
-        "approval-to-carrier ({ship:.1f}%).",
+        "funnel_text": "Of {placed:,} placed orders, {pct:.1f}% reach the customer. Stage "
+        "drop-off is {ship:.1f}% at approval->carrier and {deliver:.1f}% at carrier->customer, "
+        "so the biggest leak is **{bottleneck}**.",
+        "funnel_leg_approve": "approval->carrier",
+        "funnel_leg_deliver": "carrier->customer",
         "funnel_expander": "Stage counts",
         "col_stage": "Stage",
         "col_orders": "Orders",
@@ -264,6 +283,23 @@ directional.
 """,
         "insights_caption": "Pipeline: BigQuery marts to aggregated queries in `sql/analysis/` "
         "to this app.",
+        "insight_goto": "See the evidence in the {tab} tab →",
+        "insight_1_title": "Lateness drives satisfaction more than raw speed",
+        "insight_1_body": "On-time and early orders average **{ontime:.2f}**, but a delay of just "
+        "3-4 days past the estimate drops reviews to **{late:.2f}**. The signal is \"later than "
+        "promised,\" not the absolute number of days in transit.",
+        "insight_2_title": "Distance sets the ceiling on delivery speed",
+        "insight_2_body": "Same-state orders arrive in about **{same:.1f} days** versus "
+        "**{cross:.1f} days** across states, roughly double. Seller mix by region is a "
+        "structural lever on lead time.",
+        "insight_3_title": "Delivery risk concentrates in a few categories",
+        "insight_3_body": "`{cat}` has the longest average lead time at **{lead:.1f} days** and a "
+        "low average review of **{rev:.2f}**. One marketplace-wide delivery estimate under-serves "
+        "categories like this.",
+        "insight_4_title": "Repeat purchase is close to absent",
+        "insight_4_body": "Post-first-month retention stays under 1% across cohorts, so the first "
+        "order is effectively the whole relationship. The same scarcity is why the "
+        "delay-vs-retention comparison can only be read as directional.",
         "nav_label": "Select view",
         "rows": "rows",
         "query_running": "Running query on BigQuery…",

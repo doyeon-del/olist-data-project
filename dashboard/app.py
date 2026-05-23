@@ -192,17 +192,17 @@ st.divider()
 # View navigation (rerun on change -> lineage + query animate every switch)
 # --------------------------------------------------------------------------- #
 VIEWS = ["funnel", "stats", "delay", "geo", "category", "retention", "insights"]
-_qp_view = st.query_params.get("view")
-_default_view = _qp_view if _qp_view in VIEWS else "funnel"
+if "view" not in st.session_state:
+    _qp_view = st.query_params.get("view")
+    st.session_state["view"] = _qp_view if _qp_view in VIEWS else "funnel"
 view = st.segmented_control(
     t["nav_label"],
     VIEWS,
-    default=_default_view,
     format_func=lambda k: t[f"tab_{k}"],
     key="view",
     label_visibility="collapsed",
 )
-view = view or "funnel"
+view = view or st.session_state["view"]
 view_changed = st.session_state.get("_prev_view") != view
 st.session_state["_prev_view"] = view
 st.write("")
@@ -227,12 +227,13 @@ if view == "funnel":
     )
     fig.update_layout(**PLOTLY_LAYOUT)
     st.plotly_chart(fig, use_container_width=True)
+    ship = (values[1] - values[2]) / values[0] * 100
+    deliver = (values[2] - values[3]) / values[0] * 100
+    bottleneck = t["funnel_leg_approve"] if ship >= deliver else t["funnel_leg_deliver"]
     st.write(
         t["funnel_text"].format(
-            placed=values[0],
-            pct=values[3] / values[0] * 100,
-            deliver=(values[2] - values[3]) / values[0] * 100,
-            ship=(values[1] - values[2]) / values[0] * 100,
+            placed=values[0], pct=values[3] / values[0] * 100, ship=ship, deliver=deliver,
+            bottleneck=bottleneck,
         )
     )
     with st.expander(t["funnel_expander"]):
@@ -500,5 +501,36 @@ elif view == "retention":
 # ---- Insights -------------------------------------------------------------- #
 elif view == "insights":
     st.subheader(t["insights_title"])
-    st.markdown(t["insights_body"])
+
+    def _go(target: str) -> None:
+        st.session_state["view"] = target
+
+    ontime = delay.loc[delay["delay_bucket"].str.startswith("D<=0"), "avg_review_score"].iloc[0]
+    late = delay.loc[delay["delay_bucket"] == "D+3~4", "avg_review_score"].iloc[0]
+    same = geo.loc[geo["state_match_type"] == "Same State", "avg_lead_time_days"].iloc[0]
+    cross = geo.loc[geo["state_match_type"] == "Cross State", "avg_lead_time_days"].iloc[0]
+    worst = category.sort_values("avg_lead_time", ascending=False).iloc[0]
+
+    insights = [
+        ("delay", t["insight_1_title"], t["insight_1_body"].format(ontime=ontime, late=late)),
+        ("geo", t["insight_2_title"], t["insight_2_body"].format(same=same, cross=cross)),
+        (
+            "category",
+            t["insight_3_title"],
+            t["insight_3_body"].format(
+                cat=worst["category_name_en"], lead=worst["avg_lead_time"], rev=worst["avg_review_score"]
+            ),
+        ),
+        ("retention", t["insight_4_title"], t["insight_4_body"]),
+    ]
+    for target, title, body in insights:
+        with st.container(border=True):
+            st.markdown(f"#### {title}")
+            st.markdown(body)
+            st.button(
+                t["insight_goto"].format(tab=t[f"tab_{target}"]),
+                key=f"goto_{target}",
+                on_click=_go,
+                args=(target,),
+            )
     st.caption(t["insights_caption"])
