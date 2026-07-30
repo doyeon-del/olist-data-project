@@ -79,25 +79,36 @@ def _latest_csv(pattern: str) -> Path:
     return files[-1]
 
 
+# Once BigQuery fails (e.g. no credentials on Streamlit Cloud), skip it for
+# the remaining sources instead of paying the auth timeout seven times.
+_BQ_DISABLED = False
+
+
 @st.cache_data(ttl=3600, show_spinner=False)
 def load(name: str) -> dict:
     """Return {'df', 'source', 'detail'} for a logical query name.
 
-    Tries BigQuery first; on any failure, falls back to the committed CSV.
+    Tries BigQuery first; on any failure, falls back to the committed CSV
+    and skips BigQuery for all subsequent sources in this session.
     """
+    global _BQ_DISABLED
     sql_file, csv_glob = SOURCES[name]
-    try:
-        client = _get_client()
-        df = client.query(_read_sql(sql_file)).to_dataframe()
-        return {"df": df, "source": "BigQuery", "detail": sql_file}
-    except Exception as exc:  # noqa: BLE001 - fall back to CSV on any error
-        csv_path = _latest_csv(csv_glob)
-        df = pd.read_csv(csv_path)
-        return {
-            "df": df,
-            "source": "CSV",
-            "detail": f"{csv_path.name} ({type(exc).__name__})",
-        }
+    exc_detail = "BigQueryDisabled"
+    if not _BQ_DISABLED:
+        try:
+            client = _get_client()
+            df = client.query(_read_sql(sql_file)).to_dataframe()
+            return {"df": df, "source": "BigQuery", "detail": sql_file}
+        except Exception as exc:  # noqa: BLE001 - fall back to CSV on any error
+            _BQ_DISABLED = True
+            exc_detail = type(exc).__name__
+    csv_path = _latest_csv(csv_glob)
+    df = pd.read_csv(csv_path)
+    return {
+        "df": df,
+        "source": "CSV",
+        "detail": f"{csv_path.name} ({exc_detail})",
+    }
 
 
 def load_all() -> dict:
